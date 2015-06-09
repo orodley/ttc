@@ -5,13 +5,38 @@
 
 int main(int argc, char *argv[])
 {
-	if (argc != 2)
+	WordTree *tree = word_list_to_tree(words);
+
+	if (argc == 1) {
+		size_t max_count = 0;
+		char *max_word;
+		size_t min_count = (size_t)-1;
+		char *min_word;
+		for (size_t i = 0; words[i] != NULL; i++) {
+			if (strlen(words[i]) != 6)
+				continue;
+
+			AnagramsResult anagrams = find_all_anagrams(tree, words[i]);
+			if (anagrams.count > max_count) {
+				max_count = anagrams.count;
+				max_word = words[i];
+			} else if (anagrams.count < min_count) {
+				min_count = anagrams.count;
+				min_word = words[i];
+			}
+		}
+
+		printf("Fewest anagrams: \"%s\": %zd\n", min_word, min_count);
+		printf("Most anagrams: \"%s\": %zd\n", max_word, max_count);
+
+		return 0;
+	} else if (argc != 2) {
 		return 1;
+	}
 	char *word = argv[1];
 	if (strlen(word) > 6)
 		return 2;
 
-	WordTree *tree = word_list_to_tree(words);
 	AnagramsResult result = find_all_anagrams(tree, word);
 	for (size_t i = 0; i < result.count; i++)
 		printf("%s\n", result.anagrams + i * 7);
