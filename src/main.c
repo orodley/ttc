@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <SDL2/SDL.h>
 #include "anagram.h"
 #include "words.h"
 
@@ -40,6 +41,22 @@ int main(int argc, char *argv[])
 	AnagramsResult result = find_all_anagrams(tree, word);
 	for (size_t i = 0; i < result.count; i++)
 		printf("%s\n", result.anagrams + i * 7);
+
+	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+		return 3;
+
+	SDL_Window *window = SDL_CreateWindow(
+			"ttc",
+			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+			640, 480,
+			SDL_WINDOW_SHOWN);
+	if (window == NULL)
+		return 4;
+
+	SDL_Surface *surface = SDL_GetWindowSurface(window);
+	SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0xFF, 0xFF, 0xFF));
+	SDL_UpdateWindowSurface(window);
+	SDL_Delay(2000);
 
 	return 0;
 }
