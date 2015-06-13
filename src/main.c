@@ -13,7 +13,7 @@ void most_and_fewest(WordTree *tree)
 	size_t min_count = (size_t)-1;
 	char *min_word;
 	for (size_t i = 0; words[i] != NULL; i++) {
-		if (strlen(words[i]) != 6)
+		if (strlen(words[i]) != MAX_WORD_LENGTH)
 			continue;
 
 		AnagramsResult anagrams = find_all_anagrams(tree, words[i]);
@@ -60,6 +60,17 @@ void shuffle(char *word)
 	}
 }
 
+int word_exists(char *word_list, int count, char *word)
+{
+	size_t len = strlen(word);
+	for (int i = 0; i < count * (MAX_WORD_LENGTH + 1); i += (MAX_WORD_LENGTH + 1)) {
+		if (strncmp(word_list + i, word, len + 1) == 0)
+			return i;
+	}
+
+	return -1;
+}
+
 int main(int argc, char *argv[])
 {
 	WordTree *tree = word_list_to_tree(words);
@@ -70,13 +81,13 @@ int main(int argc, char *argv[])
 
 	char *word;
 	if (argc == 1)
-		word = strdup(random_word(words, 6));
+		word = strdup(random_word(words, MAX_WORD_LENGTH));
 	else if (argc == 2)
 		word = argv[1];
 	else
 		return 1;
 
-	if (strlen(word) > 6)
+	if (strlen(word) > MAX_WORD_LENGTH)
 		return 2;
 
 	printf("word is %s\n", word);
@@ -102,6 +113,13 @@ int main(int argc, char *argv[])
 	SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0xFF, 0xFF, 0xFF));
 	SDL_UpdateWindowSurface(window);
 
+	char curr_input[MAX_WORD_LENGTH + 1];
+	char remaining_chars[MAX_WORD_LENGTH + 1];
+	size_t chars_entered = 0;
+
+	memset(curr_input, 0, MAX_WORD_LENGTH + 1);
+	memcpy(remaining_chars, word, MAX_WORD_LENGTH + 1);
+	
 	for (;;) {
 		SDL_Event event;
 		SDL_WaitEvent(&event);
@@ -111,8 +129,51 @@ int main(int argc, char *argv[])
 
 		SDL_KeyboardEvent kbe = event.key;
 		SDL_Keycode vk = kbe.keysym.sym;
-		if (vk == SDLK_ESCAPE)
+		if (vk == SDLK_ESCAPE) {
 			break;
+		} else if ((vk >= 'a') && (vk <= 'z')) {
+			int removed_char_index = -1;
+			for (size_t i = 0; i < MAX_WORD_LENGTH - chars_entered; i++) {
+				char c = remaining_chars[i];
+
+				if (c == vk) {
+					removed_char_index = i;
+					break;
+				}
+			}
+
+			if (removed_char_index == -1)
+				continue;
+			size_t end = MAX_WORD_LENGTH - chars_entered - 1;
+			remaining_chars[removed_char_index] = remaining_chars[end];
+			remaining_chars[end] = '\0';
+
+			curr_input[chars_entered++] = vk;
+
+			printf("remaining_chars = %s\n", remaining_chars);
+			printf("curr_input = %s\n", curr_input);
+		} else if (vk == SDLK_BACKSPACE) {
+			if (chars_entered != 0) {
+				chars_entered--;
+				char removed = curr_input[chars_entered];
+				remaining_chars[MAX_WORD_LENGTH - chars_entered - 1] = removed;
+				curr_input[chars_entered] = '\0';
+
+				printf("remaining_chars = %s\n", remaining_chars);
+				printf("curr_input = %s\n", curr_input);
+			}
+		} else if (vk == SDLK_RETURN) {
+			if (word_exists(result.anagrams, result.count, curr_input) != -1)
+				printf("yep, %s is correct\n", curr_input);
+			else
+				printf("no, %s is wrong\n", curr_input);
+
+			memcpy((remaining_chars + MAX_WORD_LENGTH) - chars_entered, curr_input, chars_entered);
+			memset(curr_input, 0, chars_entered);
+			chars_entered = 0;
+			printf("remaining_chars = %s\n", remaining_chars);
+			printf("curr_input = %s\n", curr_input);
+		}
 	}
 
 	return 0;

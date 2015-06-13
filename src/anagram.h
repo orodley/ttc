@@ -1,3 +1,6 @@
+// TODO: change this if we have modes with words longer than 6 characters
+#define MAX_WORD_LENGTH 6
+
 typedef struct WordTree
 {
 	struct WordTree *sub_nodes[26 + 1];
