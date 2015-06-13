@@ -7,6 +7,10 @@
 #include "anagram.h"
 #include "words.h"
 
+static TTF_Font *font;
+static SDL_Texture *letter_textures[26];
+static SDL_Texture *background;
+
 void most_and_fewest(WordTree *tree)
 {
 	size_t max_count = 0;
@@ -74,8 +78,7 @@ int word_exists(char *word_list, int count, char *word)
 	return -1;
 }
 
-void render_letters(SDL_Renderer *renderer, SDL_Texture **letter_textures,
-		char *letters, int x, int y, int step)
+void render_letters(SDL_Renderer *renderer, char *letters, int x, int y, int step)
 {
 	SDL_Rect letter_pos = {x, y, 0, 0};
 	for (int i = 0; letters[i] != '\0'; i++) {
@@ -86,6 +89,54 @@ void render_letters(SDL_Renderer *renderer, SDL_Texture **letter_textures,
 
 		letter_pos.x += step;
 	}
+}
+
+int distance(int x1, int y1, int x2, int y2)
+{
+	int xdiff = x1 - x2;
+	int ydiff = y1 - y2;
+	return (int)sqrtf(xdiff * xdiff + ydiff * ydiff);
+}
+
+SDL_Color color_lerp(SDL_Color c1, float proportion, SDL_Color c2)
+{
+	int r_diff = c2.r - c1.r;
+	int g_diff = c2.g - c1.g;
+	int b_diff = c2.b - c1.b;
+	int a_diff = c2.a - c1.a;
+
+	int r = (int)(r_diff * proportion) + c1.r;
+	int g = (int)(g_diff * proportion) + c1.g;
+	int b = (int)(b_diff * proportion) + c1.b;
+	int a = (int)(a_diff * proportion) + c1.a;
+
+	SDL_Color result = {r, g, b, a};
+	return result;
+}
+
+SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
+		int width, int height, SDL_Color center_color, SDL_Color corner_color)
+{
+	SDL_Texture *t = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_UNKNOWN,
+			SDL_TEXTUREACCESS_TARGET, width, height);
+	SDL_Texture *original_render_target = SDL_GetRenderTarget(renderer);
+	SDL_SetRenderTarget(renderer, t);
+
+	int max_dist = distance(0, 0, width / 2, height / 2);
+	for (int x = 0; x < width; x++) {
+		for (int y = 0; y < height; y++) {
+			int dist = distance(width / 2, height / 2, x, y);
+			float proportion = (float)dist / max_dist;
+
+			SDL_Color color = color_lerp(center_color, proportion, corner_color);
+			SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+			SDL_RenderDrawPoint(renderer, x, y);
+		}
+	}
+
+	SDL_SetRenderTarget(renderer, original_render_target);
+
+	return t;
 }
 
 int main(int argc, char *argv[])
@@ -137,11 +188,10 @@ int main(int argc, char *argv[])
 		return 6;
 
 	int font_size = 24;
-	TTF_Font* font = TTF_OpenFont("font.ttf", font_size);
+	font = TTF_OpenFont("font.ttf", font_size);
 	if (font == NULL)
 		return 7;
 
-	SDL_Texture *letter_textures[26];
 	for (int i = 0; i < 26; i++) {
 		SDL_Color black = {0, 0, 0, 255};
 		SDL_Surface* letter_surface =
@@ -153,6 +203,11 @@ int main(int argc, char *argv[])
 		letter_textures[i] = letter_texture;
 	}
 
+	SDL_Color center_color = {0, 239, 235, 255};
+	SDL_Color corner_color = {0, 124, 235, 255};
+	background = render_radial_gradient(renderer, width, height,
+			center_color, corner_color);
+
 	char curr_input[MAX_WORD_LENGTH + 1];
 	char remaining_chars[MAX_WORD_LENGTH + 1];
 	size_t chars_entered = 0;
@@ -161,12 +216,13 @@ int main(int argc, char *argv[])
 	memcpy(remaining_chars, word, MAX_WORD_LENGTH + 1);
 	
 	for (;;) {
-		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+		SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         SDL_RenderClear(renderer);
+		SDL_RenderCopy(renderer, background, NULL, NULL);
 
-		render_letters(renderer, letter_textures, curr_input,
+		render_letters(renderer, curr_input,
 				width / 2, height / 2, font_size * 1.5);
-		render_letters(renderer, letter_textures, remaining_chars,
+		render_letters(renderer, remaining_chars,
 				width / 2, height / 2 + font_size * 2, font_size * 1.5);
 
         SDL_RenderPresent(renderer);
