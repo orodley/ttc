@@ -101,7 +101,19 @@ int main(int argc, char *argv[])
 	SDL_Surface *surface = SDL_GetWindowSurface(window);
 	SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0xFF, 0xFF, 0xFF));
 	SDL_UpdateWindowSurface(window);
-	SDL_Delay(2000);
+
+	for (;;) {
+		SDL_Event event;
+		SDL_WaitEvent(&event);
+
+		if (event.type != SDL_KEYDOWN)
+			continue;
+
+		SDL_KeyboardEvent kbe = event.key;
+		SDL_Keycode vk = kbe.keysym.sym;
+		if (vk == SDLK_ESCAPE)
+			break;
+	}
 
 	return 0;
 }
