@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -46,6 +47,19 @@ char *random_word(char **word_list, unsigned int length)
 	return selected_word;
 }
 
+void shuffle(char *word)
+{
+	size_t length = strlen(word);
+	for (size_t i = 0; i < length; i++) {
+		float proportion = (float)rand() / RAND_MAX;
+		size_t swap_index = ((length - i) * proportion) + i;
+
+		char tmp = word[i];
+		word[i] = word[swap_index];
+		word[swap_index] = tmp;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	WordTree *tree = word_list_to_tree(words);
@@ -56,7 +70,7 @@ int main(int argc, char *argv[])
 
 	char *word;
 	if (argc == 1)
-		word = random_word(words, 6);
+		word = strdup(random_word(words, 6));
 	else if (argc == 2)
 		word = argv[1];
 	else
@@ -64,6 +78,10 @@ int main(int argc, char *argv[])
 
 	if (strlen(word) > 6)
 		return 2;
+
+	printf("word is %s\n", word);
+	shuffle(word);
+	printf("word is %s\n", word);
 
 	AnagramsResult result = find_all_anagrams(tree, word);
 	for (size_t i = 0; i < result.count; i++)
