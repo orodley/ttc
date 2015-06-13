@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include "anagram.h"
 #include "words.h"
 
@@ -63,12 +64,28 @@ void shuffle(char *word)
 int word_exists(char *word_list, int count, char *word)
 {
 	size_t len = strlen(word);
-	for (int i = 0; i < count * (MAX_WORD_LENGTH + 1); i += (MAX_WORD_LENGTH + 1)) {
+	for (int i = 0;
+			i < count * (MAX_WORD_LENGTH + 1);
+			i += (MAX_WORD_LENGTH + 1)) {
 		if (strncmp(word_list + i, word, len + 1) == 0)
 			return i;
 	}
 
 	return -1;
+}
+
+void render_letters(SDL_Renderer *renderer, SDL_Texture **letter_textures,
+		char *letters, int x, int y, int step)
+{
+	SDL_Rect letter_pos = {x, y, 0, 0};
+	for (int i = 0; letters[i] != '\0'; i++) {
+		SDL_Texture *letter_texture = letter_textures[letters[i] - 'a'];
+		SDL_QueryTexture(letter_texture, NULL, NULL,
+				&letter_pos.w, &letter_pos.h);
+		SDL_RenderCopy(renderer, letter_texture, NULL, &letter_pos);
+
+		letter_pos.x += step;
+	}
 }
 
 int main(int argc, char *argv[])
@@ -98,20 +115,43 @@ int main(int argc, char *argv[])
 	for (size_t i = 0; i < result.count; i++)
 		printf("%s\n", result.anagrams + i * 7);
 
+
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 		return 3;
+	if (TTF_Init() == -1)
+		return 4;
+
+	int width = 720;
+	int height = 540;
 
 	SDL_Window *window = SDL_CreateWindow(
 			"ttc",
 			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-			640, 480,
+			width, height,
 			SDL_WINDOW_SHOWN);
 	if (window == NULL)
-		return 4;
+		return 5;
 
-	SDL_Surface *surface = SDL_GetWindowSurface(window);
-	SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0xFF, 0xFF, 0xFF));
-	SDL_UpdateWindowSurface(window);
+	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+	if (renderer == NULL)
+		return 6;
+
+	int font_size = 24;
+	TTF_Font* font = TTF_OpenFont("font.ttf", font_size);
+	if (font == NULL)
+		return 7;
+
+	SDL_Texture *letter_textures[26];
+	for (int i = 0; i < 26; i++) {
+		SDL_Color black = {0, 0, 0, 255};
+		SDL_Surface* letter_surface =
+			TTF_RenderGlyph_Blended(font, 'A' + i, black);
+		SDL_Texture* letter_texture =
+			SDL_CreateTextureFromSurface(renderer, letter_surface);
+		SDL_SetTextureBlendMode(letter_texture, SDL_BLENDMODE_BLEND);
+
+		letter_textures[i] = letter_texture;
+	}
 
 	char curr_input[MAX_WORD_LENGTH + 1];
 	char remaining_chars[MAX_WORD_LENGTH + 1];
@@ -121,6 +161,18 @@ int main(int argc, char *argv[])
 	memcpy(remaining_chars, word, MAX_WORD_LENGTH + 1);
 	
 	for (;;) {
+		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderClear(renderer);
+
+		render_letters(renderer, letter_textures, curr_input,
+				width / 2, height / 2, font_size * 1.5);
+		render_letters(renderer, letter_textures, remaining_chars,
+				width / 2, height / 2 + font_size * 2, font_size * 1.5);
+
+        SDL_RenderPresent(renderer);
+		SDL_UpdateWindowSurface(window);
+
+
 		SDL_Event event;
 		SDL_WaitEvent(&event);
 
@@ -168,7 +220,8 @@ int main(int argc, char *argv[])
 			else
 				printf("no, %s is wrong\n", curr_input);
 
-			memcpy((remaining_chars + MAX_WORD_LENGTH) - chars_entered, curr_input, chars_entered);
+			memcpy((remaining_chars + MAX_WORD_LENGTH) - chars_entered,
+					curr_input, chars_entered);
 			memset(curr_input, 0, chars_entered);
 			chars_entered = 0;
 			printf("remaining_chars = %s\n", remaining_chars);
