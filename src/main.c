@@ -196,23 +196,17 @@ int main(int argc, char *argv[])
 
 			if (removed_char_index == -1)
 				continue;
-			size_t end = MAX_WORD_LENGTH - chars_entered - 1;
-			remaining_chars[removed_char_index] = remaining_chars[end];
-			remaining_chars[end] = '\0';
+			for (int i = removed_char_index; i < MAX_WORD_LENGTH; i++)
+				remaining_chars[i] = remaining_chars[i + 1];
 
 			curr_input[chars_entered++] = vk;
 
-			printf("remaining_chars = %s\n", remaining_chars);
-			printf("curr_input = %s\n", curr_input);
 		} else if (vk == SDLK_BACKSPACE) {
 			if (chars_entered != 0) {
 				chars_entered--;
 				char removed = curr_input[chars_entered];
 				remaining_chars[MAX_WORD_LENGTH - chars_entered - 1] = removed;
 				curr_input[chars_entered] = '\0';
-
-				printf("remaining_chars = %s\n", remaining_chars);
-				printf("curr_input = %s\n", curr_input);
 			}
 		} else if (vk == SDLK_RETURN) {
 			if (word_exists(result.anagrams, result.count, curr_input) != -1)
@@ -224,9 +218,10 @@ int main(int argc, char *argv[])
 					curr_input, chars_entered);
 			memset(curr_input, 0, chars_entered);
 			chars_entered = 0;
-			printf("remaining_chars = %s\n", remaining_chars);
-			printf("curr_input = %s\n", curr_input);
 		}
+
+		printf("remaining_chars = %s\n", remaining_chars);
+		printf("curr_input = %s\n", curr_input);
 	}
 
 	return 0;
