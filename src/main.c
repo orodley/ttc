@@ -148,12 +148,14 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 {
 	SDL_Texture *t = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_UNKNOWN,
 			SDL_TEXTUREACCESS_TARGET, width, height);
+	SDL_Texture *quarter = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_UNKNOWN,
+			SDL_TEXTUREACCESS_TARGET, width / 2, height / 2);
 	SDL_Texture *original_render_target = SDL_GetRenderTarget(renderer);
-	SDL_SetRenderTarget(renderer, t);
+	SDL_SetRenderTarget(renderer, quarter);
 
 	int max_dist = distance(0, 0, width / 2, height / 2);
-	for (int x = 0; x < width; x++) {
-		for (int y = 0; y < height; y++) {
+	for (int x = 0; x < width / 2; x++) {
+		for (int y = 0; y < height / 2; y++) {
 			int dist = distance(width / 2, height / 2, x, y);
 			float proportion = (float)dist / max_dist;
 
@@ -162,6 +164,22 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 			SDL_RenderDrawPoint(renderer, x, y);
 		}
 	}
+
+	SDL_SetRenderTarget(renderer, t);
+	SDL_Rect dest = {0, 0, width / 2, height / 2};
+	SDL_RendererFlip flip = 0;
+	SDL_RenderCopyEx(renderer, quarter, NULL, &dest, 0, NULL, flip);
+	dest.x += width / 2;
+	flip = SDL_FLIP_HORIZONTAL;
+	SDL_RenderCopyEx(renderer, quarter, NULL, &dest, 0, NULL, flip);
+	dest.y += height / 2;
+	flip |= SDL_FLIP_VERTICAL;
+	SDL_RenderCopyEx(renderer, quarter, NULL, &dest, 0, NULL, flip);
+	dest.x -= width / 2;
+	flip = SDL_FLIP_VERTICAL;
+	SDL_RenderCopyEx(renderer, quarter, NULL, &dest, 0, NULL, flip);
+
+	SDL_DestroyTexture(quarter);
 
 	SDL_SetRenderTarget(renderer, original_render_target);
 
