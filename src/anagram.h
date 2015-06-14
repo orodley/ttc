@@ -6,11 +6,11 @@ typedef struct WordTree
 	struct WordTree *sub_nodes[26 + 1];
 } WordTree;
 
-typedef struct AnagramsResult
+typedef struct WordList
 {
-	char *anagrams;
 	size_t count;
-} AnagramsResult;
+	char words[];
+} WordList;
 
 WordTree *word_list_to_tree(char **word_list);
-AnagramsResult find_all_anagrams(WordTree *tree, char *word);
+WordList *find_all_anagrams(WordTree *tree, char *word);

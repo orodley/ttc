@@ -1,5 +1,6 @@
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <SDL2/SDL.h>
@@ -21,12 +22,12 @@ void most_and_fewest(WordTree *tree)
 		if (strlen(words[i]) != MAX_WORD_LENGTH)
 			continue;
 
-		AnagramsResult anagrams = find_all_anagrams(tree, words[i]);
-		if (anagrams.count > max_count) {
-			max_count = anagrams.count;
+		WordList *anagrams = find_all_anagrams(tree, words[i]);
+		if (anagrams->count > max_count) {
+			max_count = anagrams->count;
 			max_word = words[i];
-		} else if (anagrams.count < min_count) {
-			min_count = anagrams.count;
+		} else if (anagrams->count < min_count) {
+			min_count = anagrams->count;
 			min_word = words[i];
 		}
 	}
@@ -76,6 +77,34 @@ int word_exists(char *word_list, int count, char *word)
 	}
 
 	return -1;
+}
+
+void separate_words(WordList **separated_words, WordList *words)
+{
+	int length_counts[MAX_WORD_LENGTH + 1] = { 0 };
+	for (size_t i = 0; i < words->count; i++)
+		length_counts[strlen(words->words + i * (MAX_WORD_LENGTH + 1))]++;
+
+	for (size_t i = 3; i <= MAX_WORD_LENGTH; i++) {
+		WordList *word_list = calloc(1, sizeof(*word_list) +
+				length_counts[i] * (i + 1));
+		separated_words[i] = word_list;
+	}
+
+	for (size_t i = 0; i < words->count; i++) {
+		char *word = words->words + i * (MAX_WORD_LENGTH + 1);
+		size_t length = strlen(word);
+		WordList *word_list = separated_words[length];
+		memcpy(word_list->words + (length + 1) * word_list->count, word, length);
+		word_list->count++;
+	}
+
+	for (size_t i = 3; i <= MAX_WORD_LENGTH; i++) {
+		WordList *word_list = separated_words[i];
+
+		qsort(word_list->words, word_list->count, i + 1,
+				(int (*)(const void *, const void *))strcmp);
+	}
 }
 
 void render_letters(SDL_Renderer *renderer, char *letters, int x, int y, int step)
@@ -139,33 +168,13 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 	return t;
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	WordTree *tree = word_list_to_tree(words);
 
 	struct timeval t;
 	gettimeofday(&t, NULL);
 	srand(t.tv_usec * t.tv_sec);
-
-	char *word;
-	if (argc == 1)
-		word = strdup(random_word(words, MAX_WORD_LENGTH));
-	else if (argc == 2)
-		word = argv[1];
-	else
-		return 1;
-
-	if (strlen(word) > MAX_WORD_LENGTH)
-		return 2;
-
-	printf("word is %s\n", word);
-	shuffle(word);
-	printf("word is %s\n", word);
-
-	AnagramsResult result = find_all_anagrams(tree, word);
-	for (size_t i = 0; i < result.count; i++)
-		printf("%s\n", result.anagrams + i * 7);
-
 
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 		return 3;
@@ -207,6 +216,22 @@ int main(int argc, char *argv[])
 	SDL_Color corner_color = {0, 124, 235, 255};
 	background = render_radial_gradient(renderer, width, height,
 			center_color, corner_color);
+
+	char *word = strdup(random_word(words, MAX_WORD_LENGTH));
+
+	printf("word is %s\n", word);
+	shuffle(word);
+	printf("word is %s\n", word);
+
+	WordList *anagrams = find_all_anagrams(tree, word);
+	printf("%d anagrams:\n", anagrams->count);
+	for (size_t i = 0; i < anagrams->count; i++)
+		printf("%s\n", anagrams->words + i * (MAX_WORD_LENGTH + 1));
+
+	WordList *words[MAX_WORD_LENGTH + 1];
+	separate_words(words, anagrams);
+	for (int i = 3; i <= MAX_WORD_LENGTH; i++)
+		printf("%d: %d words\n", i, words[i]->count);
 
 	char curr_input[MAX_WORD_LENGTH + 1];
 	char remaining_chars[MAX_WORD_LENGTH + 1];
@@ -265,7 +290,7 @@ int main(int argc, char *argv[])
 				curr_input[chars_entered] = '\0';
 			}
 		} else if (vk == SDLK_RETURN) {
-			if (word_exists(result.anagrams, result.count, curr_input) != -1)
+			if (word_exists(anagrams->words, anagrams->count, curr_input) != -1)
 				printf("yep, %s is correct\n", curr_input);
 			else
 				printf("no, %s is wrong\n", curr_input);

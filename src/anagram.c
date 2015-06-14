@@ -88,9 +88,9 @@ static void find_all_anagrams_aux(char *anagrams, size_t *anagram_index,
 	memcpy(chars_to_use, original, chars_to_use_length);
 }
 
-AnagramsResult find_all_anagrams(WordTree *tree, char *word)
+WordList *find_all_anagrams(WordTree *tree, char *word)
 {
-	AnagramsResult result;
+	WordList *result = calloc(1, sizeof(*result) + MAX_ANAGRAMS);
 
 	char word_copy[MAX_WORD_LENGTH];
 	size_t word_len = strlen(word);
@@ -98,15 +98,13 @@ AnagramsResult find_all_anagrams(WordTree *tree, char *word)
 	for (size_t i = 0; i < word_len; i++)
 		assert((word[i] >= 'a') && (word[i] <= 'z'));
 
-	char *anagrams = calloc(MAX_ANAGRAMS + 1, MAX_WORD_LENGTH + 1);
 	char char_trail[MAX_WORD_LENGTH];
 	size_t anagram_index = 0;
 	strncpy(word_copy, word, word_len);
-	find_all_anagrams_aux(anagrams, &anagram_index, tree,
+	find_all_anagrams_aux(result->words, &anagram_index, tree,
 			word_copy, word_len, char_trail, 0);
 
-	result.anagrams = anagrams;
-	result.count = anagram_index;
+	result->count = anagram_index;
 
 	return result;
 }
