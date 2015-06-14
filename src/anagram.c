@@ -90,7 +90,8 @@ static void find_all_anagrams_aux(char *anagrams, size_t *anagram_index,
 
 WordList *find_all_anagrams(WordTree *tree, char *word)
 {
-	WordList *result = calloc(1, sizeof(*result) + MAX_ANAGRAMS);
+	WordList *result = calloc(1, sizeof(*result) +
+			(MAX_ANAGRAMS * (MAX_WORD_LENGTH + 1)));
 
 	char word_copy[MAX_WORD_LENGTH];
 	size_t word_len = strlen(word);

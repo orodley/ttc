@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 500
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,12 +83,16 @@ int word_exists(char *word_list, int count, char *word)
 void separate_words(WordList **separated_words, WordList *words)
 {
 	int length_counts[MAX_WORD_LENGTH + 1] = { 0 };
-	for (size_t i = 0; i < words->count; i++)
-		length_counts[strlen(words->words + i * (MAX_WORD_LENGTH + 1))]++;
+	for (size_t i = 0; i < words->count; i++) {
+		char *word = words->words + i * (MAX_WORD_LENGTH + 1);
+		size_t length = strlen(word);
+		assert((length >= 3) && (length <= MAX_WORD_LENGTH));
+		length_counts[length]++;
+	}
 
 	for (size_t i = 3; i <= MAX_WORD_LENGTH; i++) {
 		WordList *word_list = calloc(1, sizeof(*word_list) +
-				length_counts[i] * (i + 1));
+				(length_counts[i] * (i + 1)));
 		separated_words[i] = word_list;
 	}
 
@@ -95,7 +100,7 @@ void separate_words(WordList **separated_words, WordList *words)
 		char *word = words->words + i * (MAX_WORD_LENGTH + 1);
 		size_t length = strlen(word);
 		WordList *word_list = separated_words[length];
-		memcpy(word_list->words + (length + 1) * word_list->count, word, length);
+		memcpy(word_list->words + ((length + 1) * word_list->count), word, length);
 		word_list->count++;
 	}
 
@@ -243,13 +248,15 @@ int main(void)
 
 	WordList *anagrams = find_all_anagrams(tree, word);
 	printf("%d anagrams:\n", anagrams->count);
-	for (size_t i = 0; i < anagrams->count; i++)
-		printf("%s\n", anagrams->words + i * (MAX_WORD_LENGTH + 1));
 
 	WordList *words[MAX_WORD_LENGTH + 1];
 	separate_words(words, anagrams);
-	for (int i = 3; i <= MAX_WORD_LENGTH; i++)
+	for (size_t i = 3; i <= MAX_WORD_LENGTH; i++) {
 		printf("%d: %d words\n", i, words[i]->count);
+
+		for (size_t j = 0; j < words[i]->count; j++)
+			printf("\t%s\n", words[i]->words + j * (i + 1));
+	}
 
 	char curr_input[MAX_WORD_LENGTH + 1];
 	char remaining_chars[MAX_WORD_LENGTH + 1];

@@ -13,6 +13,10 @@ all: $(NAME)
 debug: CFLAGS += -ggdb3
 debug: $(NAME)
 
+.PHONY: opt
+opt: CFLAGS += -O3
+opt: $(NAME)
+
 $(NAME): $(OBJS)
 	$(CC) $(LDFLAGS) $^ -o $@
 
