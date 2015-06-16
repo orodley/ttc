@@ -112,6 +112,56 @@ void separate_words(WordList **separated_words, WordList *words)
 	}
 }
 
+void compute_layout(WordList **separated_words, int max_rows)
+{
+	int *row_sizes[MAX_WORD_LENGTH - 2];
+	int total_words = 0;
+	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
+		size_t count = separated_words[i]->count;
+		total_words += count;
+		row_sizes[i] = malloc(sizeof(int) * (count + 1));
+
+		for (size_t j = 0; j < count; j++)
+			row_sizes[i][j] = 1;
+		row_sizes[i][count] = 0;
+	}
+
+	int total_rows = total_words;
+	size_t curr_group = 0;
+	size_t distribution_index = 0;
+	while (total_rows > max_rows) {
+		int *row_group = row_sizes[curr_group];
+		size_t i = 0;
+		while (row_group[i] != 0)
+			i++;
+		if (i == 0)
+			continue;
+		i--;
+
+		int to_distribute = row_group[i];
+
+		if (i < distribution_index + to_distribute) {
+			curr_group = (curr_group + 1) % (MAX_WORD_LENGTH - 2);
+			distribution_index = 0;
+			continue;
+		}
+
+		for (size_t k = distribution_index; k < distribution_index + to_distribute; k++)
+			row_group[k]++;
+
+		distribution_index += to_distribute;
+		row_group[i] = 0;
+		total_rows--;
+	}
+
+	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
+		printf("in group %d:\n", i + 3);
+		int *row_group = row_sizes[i];
+		for (int j = 0; row_group[j] != 0; j++)
+			printf("\t%d\n", row_group[j]);
+	}
+}
+
 void render_letters(SDL_Renderer *renderer, char *letters, int x, int y, int step)
 {
 	SDL_Rect letter_pos = {x, y, 0, 0};
@@ -257,6 +307,11 @@ int main(void)
 		for (size_t j = 0; j < words[i]->count; j++)
 			printf("\t%s\n", words[i]->words + j * (i + 4));
 	}
+
+#define MAX_COLS 5
+	int letter_height = 20;
+	int max_rows = (0.9 * height) / letter_height;
+	compute_layout(words, max_rows);
 
 	char curr_input[MAX_WORD_LENGTH + 1];
 	char remaining_chars[MAX_WORD_LENGTH + 1];
