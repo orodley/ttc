@@ -82,32 +82,32 @@ int word_exists(char *word_list, int count, char *word)
 
 void separate_words(WordList **separated_words, WordList *words)
 {
-	int length_counts[MAX_WORD_LENGTH + 1] = { 0 };
+	int length_counts[MAX_WORD_LENGTH - 2] = { 0 };
 	for (size_t i = 0; i < words->count; i++) {
 		char *word = words->words + i * (MAX_WORD_LENGTH + 1);
 		size_t length = strlen(word);
 		assert((length >= 3) && (length <= MAX_WORD_LENGTH));
-		length_counts[length]++;
+		length_counts[length - 3]++;
 	}
 
-	for (size_t i = 3; i <= MAX_WORD_LENGTH; i++) {
+	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
 		WordList *word_list = calloc(1, sizeof(*word_list) +
-				(length_counts[i] * (i + 1)));
+				(length_counts[i] * (i + 4)));
 		separated_words[i] = word_list;
 	}
 
 	for (size_t i = 0; i < words->count; i++) {
 		char *word = words->words + i * (MAX_WORD_LENGTH + 1);
 		size_t length = strlen(word);
-		WordList *word_list = separated_words[length];
+		WordList *word_list = separated_words[length - 3];
 		memcpy(word_list->words + ((length + 1) * word_list->count), word, length);
 		word_list->count++;
 	}
 
-	for (size_t i = 3; i <= MAX_WORD_LENGTH; i++) {
+	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
 		WordList *word_list = separated_words[i];
 
-		qsort(word_list->words, word_list->count, i + 1,
+		qsort(word_list->words, word_list->count, i + 4,
 				(int (*)(const void *, const void *))strcmp);
 	}
 }
@@ -249,13 +249,13 @@ int main(void)
 	WordList *anagrams = find_all_anagrams(tree, word);
 	printf("%d anagrams:\n", anagrams->count);
 
-	WordList *words[MAX_WORD_LENGTH + 1];
+	WordList *words[MAX_WORD_LENGTH - 2];
 	separate_words(words, anagrams);
-	for (size_t i = 3; i <= MAX_WORD_LENGTH; i++) {
-		printf("%d: %d words\n", i, words[i]->count);
+	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
+		printf("%d: %d words\n", i + 3, words[i]->count);
 
 		for (size_t j = 0; j < words[i]->count; j++)
-			printf("\t%s\n", words[i]->words + j * (i + 1));
+			printf("\t%s\n", words[i]->words + j * (i + 4));
 	}
 
 	char curr_input[MAX_WORD_LENGTH + 1];
@@ -325,9 +325,6 @@ int main(void)
 			memset(curr_input, 0, chars_entered);
 			chars_entered = 0;
 		}
-
-		printf("remaining_chars = %s\n", remaining_chars);
-		printf("curr_input = %s\n", curr_input);
 	}
 
 	return 0;
