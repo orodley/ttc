@@ -1,5 +1,6 @@
 #define _XOPEN_SOURCE 500
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,8 +10,8 @@
 #include "anagram.h"
 #include "words.h"
 
-static TTF_Font *font;
-static SDL_Texture *letter_textures[26];
+static SDL_Texture *large_letter_textures[26];
+static SDL_Texture *small_letter_textures[26];
 static SDL_Texture *background;
 
 void most_and_fewest(WordTree *tree)
@@ -67,24 +68,24 @@ void shuffle(char *word)
 	}
 }
 
-int word_exists(char *word_list, int count, char *word)
+int word_position(WordList *word_list, const char *word)
 {
 	size_t len = strlen(word);
-	for (int i = 0;
-			i < count * (MAX_WORD_LENGTH + 1);
-			i += (MAX_WORD_LENGTH + 1)) {
-		if (strncmp(word_list + i, word, len + 1) == 0)
-			return i;
+	for (size_t i = 0;
+			i < word_list->count * (len + 1);
+			i += (len + 1)) {
+		if (strncmp(word_list->words + i, word, len + 1) == 0)
+			return i / (len + 1);
 	}
 
 	return -1;
 }
 
-void separate_words(WordList **separated_words, WordList *words)
+void separate_words(WordList **separated_words, const WordList *words)
 {
 	int length_counts[MAX_WORD_LENGTH - 2] = { 0 };
 	for (size_t i = 0; i < words->count; i++) {
-		char *word = words->words + i * (MAX_WORD_LENGTH + 1);
+		const char *word = words->words + i * (MAX_WORD_LENGTH + 1);
 		size_t length = strlen(word);
 		assert((length >= 3) && (length <= MAX_WORD_LENGTH));
 		length_counts[length - 3]++;
@@ -97,7 +98,7 @@ void separate_words(WordList **separated_words, WordList *words)
 	}
 
 	for (size_t i = 0; i < words->count; i++) {
-		char *word = words->words + i * (MAX_WORD_LENGTH + 1);
+		const char *word = words->words + i * (MAX_WORD_LENGTH + 1);
 		size_t length = strlen(word);
 		WordList *word_list = separated_words[length - 3];
 		memcpy(word_list->words + ((length + 1) * word_list->count), word, length);
@@ -207,16 +208,52 @@ int **compute_layout(WordList **separated_words, int max_rows)
 	return col_sizes;
 }
 
-void render_letters(SDL_Renderer *renderer, char *letters, int x, int y, int step)
+bool prerender_letters(SDL_Texture **textures, SDL_Renderer *renderer,
+		char *font_name, int size)
 {
-	SDL_Rect letter_pos = {x, y, 0, 0};
+	TTF_Font *font = TTF_OpenFont(font_name, size);
+	if (font == NULL)
+		return false;
+	int minx;
+	int maxx;
+	int miny;
+	int maxy;
+	int advance;
+	TTF_GlyphMetrics(font, 'I', &minx, &maxx, &miny, &maxy, &advance);
+	printf("at size %d, minx = %d, maxx = %d, miny = %d, maxy = %d, advance = %d\n",
+			size, minx, maxx, miny, maxy, advance);
+
+	for (int i = 0; i < 26; i++) {
+		SDL_Color black = {0, 0, 0, 255};
+		SDL_Surface* letter_surface =
+			TTF_RenderGlyph_Blended(font, 'A' + i, black);
+		SDL_Texture* letter_texture =
+			SDL_CreateTextureFromSurface(renderer, letter_surface);
+		SDL_SetTextureBlendMode(letter_texture, SDL_BLENDMODE_BLEND);
+
+		textures[i] = letter_texture;
+	}
+
+	return true;
+}
+
+void render_word(SDL_Renderer *renderer, SDL_Texture **letter_textures,
+		const char *letters, int x, int y, int step)
+{
+	SDL_Rect letter_box = {
+		.x = x,
+		.y = y,
+		.h = 0,
+		.w = 0,
+	};
+
 	for (int i = 0; letters[i] != '\0'; i++) {
 		SDL_Texture *letter_texture = letter_textures[letters[i] - 'a'];
-		SDL_QueryTexture(letter_texture, NULL, NULL,
-				&letter_pos.w, &letter_pos.h);
-		SDL_RenderCopy(renderer, letter_texture, NULL, &letter_pos);
+		SDL_QueryTexture(letter_texture, NULL, NULL, &letter_box.w, &letter_box.h);
 
-		letter_pos.x += step;
+		SDL_RenderCopy(renderer, letter_texture, NULL, &letter_box);
+
+		letter_box.x += step;
 	}
 }
 
@@ -286,9 +323,13 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 	return t;
 }
 
+#define WORDS_START_X 10
+#define WORDS_START_Y 10
 #define LETTER_SPACING 2
 #define LETTER_HEIGHT 20
 #define BOX_SPACING 3
+#define BOX_HEIGHT (LETTER_HEIGHT + LETTER_SPACING * 2)
+#define BOX_WIDTH (BOX_HEIGHT * 0.75)
 #define ROW_SPACING BOX_SPACING
 #define COLUMN_SPACING 6
 
@@ -304,12 +345,11 @@ SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 	SDL_RenderClear(renderer);
 
-	int box_height = LETTER_HEIGHT + LETTER_SPACING * 2;
 	SDL_Rect box = { 
-		.x = 10,
-		.y = 10,
-		.h = box_height,
-		.w = box_height * 0.75,
+		.x = WORDS_START_X,
+		.y = WORDS_START_Y,
+		.h = BOX_HEIGHT,
+		.w = BOX_WIDTH,
 	};
 
 	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
@@ -344,7 +384,7 @@ SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 			}
 		}
 
-		box.x = 10;
+		box.x = WORDS_START_X;
 		box.y += group_col_sizes[0] * (box.h + ROW_SPACING);
 	}
 
@@ -381,20 +421,10 @@ int main(void)
 		return 6;
 
 	int font_size = 24;
-	font = TTF_OpenFont("font.ttf", font_size);
-	if (font == NULL)
+	if (!prerender_letters(large_letter_textures, renderer, "font.ttf", font_size))
 		return 7;
-
-	for (int i = 0; i < 26; i++) {
-		SDL_Color black = {0, 0, 0, 255};
-		SDL_Surface* letter_surface =
-			TTF_RenderGlyph_Blended(font, 'A' + i, black);
-		SDL_Texture* letter_texture =
-			SDL_CreateTextureFromSurface(renderer, letter_surface);
-		SDL_SetTextureBlendMode(letter_texture, SDL_BLENDMODE_BLEND);
-
-		letter_textures[i] = letter_texture;
-	}
+	if (!prerender_letters(small_letter_textures, renderer, "font.ttf", 18))
+		return 7;
 
 	SDL_Color center_color = {0, 239, 235, 255};
 	SDL_Color corner_color = {0, 124, 235, 255};
@@ -440,9 +470,9 @@ int main(void)
 		SDL_RenderCopy(renderer, background, NULL, NULL);
 		SDL_RenderCopy(renderer, guessed_words, NULL, NULL);
 
-		render_letters(renderer, curr_input,
+		render_word(renderer, large_letter_textures, curr_input,
 				width / 2, height / 2, font_size * 1.5);
-		render_letters(renderer, remaining_chars,
+		render_word(renderer, large_letter_textures, remaining_chars,
 				width / 2, height / 2 + font_size * 2, font_size * 1.5);
 
         SDL_RenderPresent(renderer);
@@ -485,10 +515,48 @@ int main(void)
 				curr_input[chars_entered] = '\0';
 			}
 		} else if (vk == SDLK_RETURN) {
-			if (word_exists(anagrams->words, anagrams->count, curr_input) != -1)
+			size_t length = strlen(curr_input);
+			int position;
+			WordList *word_list = words[length - 3];
+			if ((position = word_position(word_list, curr_input)) != -1) {
 				printf("yep, %s is correct\n", curr_input);
-			else
+
+				int x = WORDS_START_X;
+				int y = WORDS_START_Y;
+
+				int *cols = col_sizes[length - 3];
+				int column = 0;
+				int row = position;
+				int column_size = cols[column];
+				while (row >= column_size) {
+					column++;
+					row -= column_size;
+					column_size = cols[column];
+				}
+
+				x += column * length * (BOX_WIDTH + BOX_SPACING);
+				x += column * COLUMN_SPACING;
+
+				for (size_t i = 0; i < length - 3; i++)
+					y += col_sizes[i][0] * (BOX_HEIGHT + BOX_SPACING);
+
+				y += row * (BOX_HEIGHT + BOX_SPACING);
+
+				// Hack to get letters placed slightly better. We should render
+				// center glyphs when we render them to do this properly.
+				x += 2; 
+				y += 2;
+
+				SDL_Texture *original_render_target =
+					SDL_GetRenderTarget(renderer);
+				SDL_SetRenderTarget(renderer, guessed_words);
+				render_word(renderer, small_letter_textures,
+						curr_input, x, y, BOX_WIDTH + BOX_SPACING);
+
+				SDL_SetRenderTarget(renderer, original_render_target);
+			} else {
 				printf("no, %s is wrong\n", curr_input);
+			}
 
 			memcpy((remaining_chars + MAX_WORD_LENGTH) - chars_entered,
 					curr_input, chars_entered);
