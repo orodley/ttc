@@ -112,7 +112,7 @@ void separate_words(WordList **separated_words, WordList *words)
 	}
 }
 
-void compute_layout(WordList **separated_words, int max_rows)
+int **compute_layout(WordList **separated_words, int max_rows)
 {
 	int *row_sizes[MAX_WORD_LENGTH - 2];
 	int total_words = 0;
@@ -170,7 +170,7 @@ void compute_layout(WordList **separated_words, int max_rows)
 
 	// TODO: maybe it's just as easy to compute it column-wise instead of
 	// row-wise in the first place?
-	int *col_sizes[MAX_WORD_LENGTH - 2];
+	int **col_sizes = malloc(sizeof(*col_sizes) * (MAX_WORD_LENGTH - 2));
 	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++)
 		col_sizes[i] = calloc(max_cols, sizeof(int));
 
@@ -200,6 +200,11 @@ void compute_layout(WordList **separated_words, int max_rows)
 		for (int j = 0; col_group[j] != 0; j++)
 			printf("\t%d\n", col_group[j]);
 	}
+
+	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++)
+		free(row_sizes[i]);
+
+	return col_sizes;
 }
 
 void render_letters(SDL_Renderer *renderer, char *letters, int x, int y, int step)
@@ -281,6 +286,72 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 	return t;
 }
 
+#define LETTER_SPACING 2
+#define LETTER_HEIGHT 20
+#define BOX_SPACING 3
+#define ROW_SPACING BOX_SPACING
+#define COLUMN_SPACING 6
+
+SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
+		int **col_sizes, int width, int height)
+{
+	SDL_Texture *t = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_UNKNOWN,
+			SDL_TEXTUREACCESS_TARGET, width, height);
+	SDL_Texture *original_render_target = SDL_GetRenderTarget(renderer);
+	SDL_SetRenderTarget(renderer, t);
+
+	SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+	SDL_RenderClear(renderer);
+
+	int box_height = LETTER_HEIGHT + LETTER_SPACING * 2;
+	SDL_Rect box = { 
+		.x = 10,
+		.y = 10,
+		.h = box_height,
+		.w = box_height * 0.75,
+	};
+
+	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
+		int group_start_y = box.y;
+		int *group_col_sizes = col_sizes[i];
+		WordList *word_list = word_lists[i];
+		int word_length = i + 3;
+		int curr_col_index = 0;
+		int words_left_in_column = group_col_sizes[curr_col_index];
+
+		for (size_t j = 0; j < word_list->count; j++) {
+			int word_start_x = box.x;
+			for (int n = 0; n < word_length; n++) {
+				SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+				SDL_RenderFillRect(renderer, &box);
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+				SDL_RenderDrawRect(renderer, &box);
+
+				box.x += box.w + BOX_SPACING;
+			}
+
+			words_left_in_column--;
+			if (words_left_in_column == 0) {
+				curr_col_index++;
+				words_left_in_column = group_col_sizes[curr_col_index];
+
+				box.y = group_start_y;
+				box.x += COLUMN_SPACING;
+			} else {
+				box.x = word_start_x;
+				box.y += box.h + ROW_SPACING;
+			}
+		}
+
+		box.x = 10;
+		box.y += group_col_sizes[0] * (box.h + ROW_SPACING);
+	}
+
+	SDL_SetRenderTarget(renderer, original_render_target);
+	return t;
+}
+
 int main(void)
 {
 	WordTree *tree = word_list_to_tree(words);
@@ -349,9 +420,12 @@ int main(void)
 	}
 
 #define MAX_COLS 5
-	int letter_height = 20;
-	int max_rows = (0.9 * height) / letter_height;
-	compute_layout(words, max_rows);
+	int box_height = LETTER_HEIGHT + LETTER_SPACING * 2;
+	int max_rows = (height - 20) / (box_height + BOX_SPACING);
+	int **col_sizes = compute_layout(words, max_rows);
+
+	SDL_Texture *guessed_words = render_empty_words(renderer, words, col_sizes,
+			width, height);
 
 	char curr_input[MAX_WORD_LENGTH + 1];
 	char remaining_chars[MAX_WORD_LENGTH + 1];
@@ -364,6 +438,7 @@ int main(void)
 		SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, background, NULL, NULL);
+		SDL_RenderCopy(renderer, guessed_words, NULL, NULL);
 
 		render_letters(renderer, curr_input,
 				width / 2, height / 2, font_size * 1.5);
