@@ -127,10 +127,12 @@ void compute_layout(WordList **separated_words, int max_rows)
 	}
 
 	int total_rows = total_words;
+	int max_cols = 1;
 	size_t curr_group = 0;
 	size_t distribution_index = 0;
 	while (total_rows > max_rows) {
 		int *row_group = row_sizes[curr_group];
+		// TODO: We could cache the number of rows in each group instead of recomputing it
 		size_t i = 0;
 		while (row_group[i] != 0)
 			i++;
@@ -141,6 +143,9 @@ void compute_layout(WordList **separated_words, int max_rows)
 		int to_distribute = row_group[i];
 
 		if (i < distribution_index + to_distribute) {
+			if (curr_group == 0)
+				max_cols++;
+
 			curr_group = (curr_group + 1) % (MAX_WORD_LENGTH - 2);
 			distribution_index = 0;
 			continue;
@@ -154,11 +159,46 @@ void compute_layout(WordList **separated_words, int max_rows)
 		total_rows--;
 	}
 
+	puts("rows:");
+	printf("max_cols = %d\n", max_cols);
 	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
 		printf("in group %d:\n", i + 3);
 		int *row_group = row_sizes[i];
 		for (int j = 0; row_group[j] != 0; j++)
 			printf("\t%d\n", row_group[j]);
+	}
+
+	// TODO: maybe it's just as easy to compute it column-wise instead of
+	// row-wise in the first place?
+	int *col_sizes[MAX_WORD_LENGTH - 2];
+	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++)
+		col_sizes[i] = calloc(max_cols, sizeof(int));
+
+	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
+		int *col_group = col_sizes[i];
+		int *row_group = row_sizes[i];
+
+		int curr_col = row_group[0];
+		int j;
+		for (j = 0; row_group[j] != 0; j++) {
+			int row_size = row_group[j];
+
+			if (row_size < curr_col) {
+				for (int k = row_size; k < curr_col; k++)
+					col_group[k] = j;
+				curr_col = row_size;
+			}
+		}
+		for (; curr_col > 0; curr_col--)
+			col_group[curr_col - 1] = j;
+	}
+
+	puts("\ncolumns:");
+	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
+		printf("in group %d:\n", i + 3);
+		int *col_group = col_sizes[i];
+		for (int j = 0; col_group[j] != 0; j++)
+			printf("\t%d\n", col_group[j]);
 	}
 }
 
@@ -297,12 +337,12 @@ int main(void)
 	printf("word is %s\n", word);
 
 	WordList *anagrams = find_all_anagrams(tree, word);
-	printf("%d anagrams:\n", anagrams->count);
+	printf("%zu anagrams:\n", anagrams->count);
 
 	WordList *words[MAX_WORD_LENGTH - 2];
 	separate_words(words, anagrams);
 	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
-		printf("%d: %d words\n", i + 3, words[i]->count);
+		printf("%zu: %zu words\n", i + 3, words[i]->count);
 
 		for (size_t j = 0; j < words[i]->count; j++)
 			printf("\t%s\n", words[i]->words + j * (i + 4));
