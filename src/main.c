@@ -517,8 +517,8 @@ int main(void)
 		} else if (vk == SDLK_RETURN) {
 			size_t length = strlen(curr_input);
 			int position;
-			WordList *word_list = words[length - 3];
-			if ((position = word_position(word_list, curr_input)) != -1) {
+			if (length >= 3 &&
+					(position = word_position(words[length - 3], curr_input)) != -1) {
 				printf("yep, %s is correct\n", curr_input);
 
 				int x = WORDS_START_X;
