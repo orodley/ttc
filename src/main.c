@@ -68,13 +68,12 @@ void shuffle(char *word)
 	}
 }
 
-int word_position(WordList *word_list, const char *word, int length)
+int word_position(WordList *word_list, const char *word)
 {
-	for (size_t i = 0;
-			i < word_list->count * (length + 1);
-			i += (length + 1)) {
-		if (strncmp(word_list->words + i, word, length + 1) == 0)
-			return i / (length + 1);
+	size_t length = strlen(word);
+	for (size_t i = 0; i < word_list->count; i++) {
+		if (strncmp(GET_WORD(word_list, i), word, length) == 0)
+			return i;
 	}
 
 	return -1;
@@ -84,30 +83,30 @@ void separate_words(WordList **separated_words, const WordList *words)
 {
 	int length_counts[MAX_WORD_LENGTH - 2] = { 0 };
 	for (size_t i = 0; i < words->count; i++) {
-		const char *word = words->words + i * (MAX_WORD_LENGTH + 1);
+		const char *word = GET_WORD(words, i);
 		size_t length = strlen(word);
 		assert((length >= 3) && (length <= MAX_WORD_LENGTH));
 		length_counts[length - 3]++;
 	}
 
 	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
-		WordList *word_list = calloc(1, sizeof(*word_list) +
-				(length_counts[i] * (i + 4)));
+		WordList *word_list = make_word_list(length_counts[i], i + 4);
+		word_list->count = 0;
 		separated_words[i] = word_list;
 	}
 
 	for (size_t i = 0; i < words->count; i++) {
-		const char *word = words->words + i * (MAX_WORD_LENGTH + 1);
+		const char *word = GET_WORD(words, i);
 		size_t length = strlen(word);
 		WordList *word_list = separated_words[length - 3];
-		memcpy(word_list->words + ((length + 1) * word_list->count), word, length);
+		memcpy(GET_WORD(word_list, word_list->count), word, length);
 		word_list->count++;
 	}
 
 	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
 		WordList *word_list = separated_words[i];
 
-		qsort(word_list->words, word_list->count, i + 4,
+		qsort(word_list->words, word_list->count, word_list->elem_size,
 				(int (*)(const void *, const void *))strcmp);
 	}
 }
@@ -445,7 +444,7 @@ int main(void)
 		printf("%zu: %zu words\n", i + 3, words[i]->count);
 
 		for (size_t j = 0; j < words[i]->count; j++)
-			printf("\t%s\n", words[i]->words + j * (i + 4));
+			printf("\t%s\n", GET_WORD(words[i], j));
 	}
 
 #define MAX_COLS 5
@@ -517,7 +516,7 @@ int main(void)
 			size_t length = strlen(curr_input);
 			int position;
 			if (length >= 3 && (position = word_position(words[length - 3],
-							curr_input, length)) != -1) {
+							curr_input)) != -1) {
 				printf("yep, %s is correct\n", curr_input);
 
 				int x = WORDS_START_X;
@@ -541,8 +540,8 @@ int main(void)
 
 				y += row * (BOX_HEIGHT + BOX_SPACING);
 
-				// Hack to get letters placed slightly better. We should render
-				// center glyphs when we render them to do this properly.
+				// Hack to get letters placed slightly better. We should center
+				// glyphs when we render them to do this properly.
 				x += 2; 
 				y += 2;
 
