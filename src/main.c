@@ -68,14 +68,13 @@ void shuffle(char *word)
 	}
 }
 
-int word_position(WordList *word_list, const char *word)
+int word_position(WordList *word_list, const char *word, int length)
 {
-	size_t len = strlen(word);
 	for (size_t i = 0;
-			i < word_list->count * (len + 1);
-			i += (len + 1)) {
-		if (strncmp(word_list->words + i, word, len + 1) == 0)
-			return i / (len + 1);
+			i < word_list->count * (length + 1);
+			i += (length + 1)) {
+		if (strncmp(word_list->words + i, word, length + 1) == 0)
+			return i / (length + 1);
 	}
 
 	return -1;
@@ -517,8 +516,8 @@ int main(void)
 		} else if (vk == SDLK_RETURN) {
 			size_t length = strlen(curr_input);
 			int position;
-			if (length >= 3 &&
-					(position = word_position(words[length - 3], curr_input)) != -1) {
+			if (length >= 3 && (position = word_position(words[length - 3],
+							curr_input, length)) != -1) {
 				printf("yep, %s is correct\n", curr_input);
 
 				int x = WORDS_START_X;
