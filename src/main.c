@@ -70,7 +70,7 @@ void shuffle(char *word)
 
 int word_position(WordList *word_list, const char *word)
 {
-	size_t length = strlen(word);
+	size_t length = strlen(word) + 1;
 	for (size_t i = 0; i < word_list->count; i++) {
 		if (strncmp(GET_WORD(word_list, i), word, length) == 0)
 			return i;
@@ -452,8 +452,12 @@ int main(void)
 	int max_rows = (height - 20) / (box_height + BOX_SPACING);
 	int **col_sizes = compute_layout(words, max_rows);
 
-	SDL_Texture *guessed_words = render_empty_words(renderer, words, col_sizes,
-			width, height);
+	SDL_Texture *guessed_words_texture = render_empty_words(renderer, words,
+			col_sizes, width, height);
+
+	WordList *guessed_words =
+		make_word_list(anagrams->count, MAX_WORD_LENGTH + 1);
+	guessed_words->count = 0;
 
 	char curr_input[MAX_WORD_LENGTH + 1];
 	char remaining_chars[MAX_WORD_LENGTH + 1];
@@ -466,7 +470,7 @@ int main(void)
 		SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, background, NULL, NULL);
-		SDL_RenderCopy(renderer, guessed_words, NULL, NULL);
+		SDL_RenderCopy(renderer, guessed_words_texture, NULL, NULL);
 
 		render_word(renderer, large_letter_textures, curr_input,
 				width / 2, height / 2, font_size * 1.5);
@@ -515,9 +519,17 @@ int main(void)
 		} else if (vk == SDLK_RETURN) {
 			size_t length = strlen(curr_input);
 			int position;
-			if (length >= 3 && (position = word_position(words[length - 3],
+			if (length < 3 || length > 6) {
+				printf("%s is not the right length\n", curr_input);
+			} else if (word_position(guessed_words, curr_input) != -1) {
+				printf("you've already guessed %s\n", curr_input);
+			} else if ((position = word_position(words[length - 3],
 							curr_input)) != -1) {
 				printf("yep, %s is correct\n", curr_input);
+
+				memcpy(GET_WORD(guessed_words, guessed_words->count),
+						curr_input, length);
+				guessed_words->count++;
 
 				int x = WORDS_START_X;
 				int y = WORDS_START_Y;
@@ -547,7 +559,7 @@ int main(void)
 
 				SDL_Texture *original_render_target =
 					SDL_GetRenderTarget(renderer);
-				SDL_SetRenderTarget(renderer, guessed_words);
+				SDL_SetRenderTarget(renderer, guessed_words_texture);
 				render_word(renderer, small_letter_textures,
 						curr_input, x, y, BOX_WIDTH + BOX_SPACING);
 
