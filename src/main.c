@@ -158,15 +158,6 @@ int **compute_layout(WordList **separated_words, int max_rows)
 		total_rows--;
 	}
 
-	puts("rows:");
-	printf("max_cols = %d\n", max_cols);
-	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
-		printf("in group %d:\n", i + 3);
-		int *row_group = row_sizes[i];
-		for (int j = 0; row_group[j] != 0; j++)
-			printf("\t%d\n", row_group[j]);
-	}
-
 	// TODO: maybe it's just as easy to compute it column-wise instead of
 	// row-wise in the first place?
 	int **col_sizes = malloc(sizeof(*col_sizes) * (MAX_WORD_LENGTH - 2));
@@ -190,14 +181,6 @@ int **compute_layout(WordList **separated_words, int max_rows)
 		}
 		for (; curr_col > 0; curr_col--)
 			col_group[curr_col - 1] = j;
-	}
-
-	puts("\ncolumns:");
-	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
-		printf("in group %d:\n", i + 3);
-		int *col_group = col_sizes[i];
-		for (int j = 0; col_group[j] != 0; j++)
-			printf("\t%d\n", col_group[j]);
 	}
 
 	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++)
@@ -230,6 +213,8 @@ bool prerender_letters(SDL_Texture **textures, SDL_Renderer *renderer,
 		SDL_SetTextureBlendMode(letter_texture, SDL_BLENDMODE_BLEND);
 
 		textures[i] = letter_texture;
+
+		SDL_FreeSurface(letter_surface);
 	}
 
 	return true;
@@ -390,6 +375,25 @@ SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 	return t;
 }
 
+#define SECOND_ELAPSED 0
+
+uint32_t push_time_event(uint32_t interval, void *param)
+{
+	(void)param;
+
+    SDL_Event event;
+    SDL_UserEvent userevent;
+
+    userevent.type = SDL_USEREVENT;
+    userevent.code = SECOND_ELAPSED;
+
+    event.type = SDL_USEREVENT;
+    event.user = userevent;
+
+    SDL_PushEvent(&event);
+    return(interval);
+}
+
 int main(void)
 {
 	WordTree *tree = word_list_to_tree(words);
@@ -398,7 +402,7 @@ int main(void)
 	gettimeofday(&t, NULL);
 	srand(t.tv_usec * t.tv_sec);
 
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0)
 		return 3;
 	if (TTF_Init() == -1)
 		return 4;
@@ -422,6 +426,9 @@ int main(void)
 	if (!prerender_letters(large_letter_textures, renderer, "font.ttf", font_size))
 		return 7;
 	if (!prerender_letters(small_letter_textures, renderer, "font.ttf", 18))
+		return 7;
+	TTF_Font *font = TTF_OpenFont("font.ttf", font_size);
+	if (font == NULL)
 		return 7;
 
 	SDL_Color center_color = {0, 239, 235, 255};
@@ -465,6 +472,9 @@ int main(void)
 
 	memset(curr_input, 0, MAX_WORD_LENGTH + 1);
 	memcpy(remaining_chars, word, MAX_WORD_LENGTH + 1);
+
+	SDL_AddTimer(1000, push_time_event, NULL);
+	int time_left = 180;
 	
 	for (;;) {
 		SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
@@ -477,15 +487,49 @@ int main(void)
 		render_word(renderer, large_letter_textures, remaining_chars,
 				width / 2, height / 2 + font_size * 2, font_size * 1.5);
 
+		int minutes = time_left / 60;
+		int seconds = time_left % 60;
+
+		size_t str_len = sizeof "3:00";
+		char time_str[str_len];
+		snprintf(time_str, str_len, "%d:%02d", minutes, seconds);
+		SDL_Color black = { 0, 0, 0, 255 };
+		SDL_Surface *time_surface = TTF_RenderText_Blended(font, time_str, black);
+		SDL_Texture *time_texture = SDL_CreateTextureFromSurface(renderer, time_surface);
+
+		SDL_Rect time_pos = {
+			.x = width / 2,
+			.y = height / 2 + font_size * 5,
+		};
+		SDL_QueryTexture(time_texture, NULL, NULL, &time_pos.w, &time_pos.h);
+		SDL_RenderCopy(renderer, time_texture, NULL, &time_pos);
+
         SDL_RenderPresent(renderer);
 		SDL_UpdateWindowSurface(window);
 
+		SDL_FreeSurface(time_surface);
+		SDL_DestroyTexture(time_texture);
 
 		SDL_Event event;
 		SDL_WaitEvent(&event);
 
-		if (event.type != SDL_KEYDOWN)
+		if (event.type == SDL_USEREVENT) {
+			switch (event.user.code) {
+			case SECOND_ELAPSED:
+				time_left--;
+
+				if (time_left == 0) {
+					puts("Time's up!");
+					return 0;
+				}
+
+				break;
+			}
+
 			continue;
+		} else if (event.type != SDL_KEYDOWN) {
+			continue;
+		}
 
 		SDL_KeyboardEvent kbe = event.key;
 		SDL_Keycode vk = kbe.keysym.sym;
@@ -564,6 +608,9 @@ int main(void)
 						curr_input, x, y, BOX_WIDTH + BOX_SPACING);
 
 				SDL_SetRenderTarget(renderer, original_render_target);
+
+				if (guessed_words->count == anagrams->count)
+					puts("Congratulations, you guessed all the words!");
 			} else {
 				printf("no, %s is wrong\n", curr_input);
 			}
