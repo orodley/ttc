@@ -220,7 +220,7 @@ bool prerender_letters(SDL_Texture **textures, SDL_Renderer *renderer,
 	return true;
 }
 
-void render_word(SDL_Renderer *renderer, SDL_Texture **letter_textures,
+void render_letters(SDL_Renderer *renderer, SDL_Texture **letter_textures,
 		const char *letters, int x, int y, int step)
 {
 	SDL_Rect letter_box = {
@@ -238,6 +238,19 @@ void render_word(SDL_Renderer *renderer, SDL_Texture **letter_textures,
 
 		letter_box.x += step;
 	}
+}
+
+void render_text(SDL_Renderer *renderer, TTF_Font *font, char *text, int x, int y)
+{
+	SDL_Color black = { 0, 0, 0, 255 };
+	SDL_Surface *surface = TTF_RenderText_Blended(font, text, black);
+	SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+	SDL_Rect pos = { .x = x, .y = y };
+	SDL_QueryTexture(texture, NULL, NULL, &pos.w, &pos.h);
+	SDL_RenderCopy(renderer, texture, NULL, &pos);
+
+	SDL_FreeSurface(surface);
+	SDL_DestroyTexture(texture);
 }
 
 int distance(int x1, int y1, int x2, int y2)
@@ -475,6 +488,7 @@ int main(void)
 
 	SDL_AddTimer(1000, push_time_event, NULL);
 	int time_left = 180;
+	int points = 0;
 	
 	for (;;) {
 		SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
@@ -482,33 +496,26 @@ int main(void)
 		SDL_RenderCopy(renderer, background, NULL, NULL);
 		SDL_RenderCopy(renderer, guessed_words_texture, NULL, NULL);
 
-		render_word(renderer, large_letter_textures, curr_input,
+		render_letters(renderer, large_letter_textures, curr_input,
 				width / 2, height / 2, font_size * 1.5);
-		render_word(renderer, large_letter_textures, remaining_chars,
+		render_letters(renderer, large_letter_textures, remaining_chars,
 				width / 2, height / 2 + font_size * 2, font_size * 1.5);
 
 		int minutes = time_left / 60;
 		int seconds = time_left % 60;
 
-		size_t str_len = sizeof "3:00";
-		char time_str[str_len];
-		snprintf(time_str, str_len, "%d:%02d", minutes, seconds);
-		SDL_Color black = { 0, 0, 0, 255 };
-		SDL_Surface *time_surface = TTF_RenderText_Blended(font, time_str, black);
-		SDL_Texture *time_texture = SDL_CreateTextureFromSurface(renderer, time_surface);
+		size_t time_str_len = sizeof "3:00";
+		char time_str[time_str_len];
+		snprintf(time_str, time_str_len, "%d:%02d", minutes, seconds);
+		render_text(renderer, font, time_str, width / 2, height / 2 + font_size * 5);
 
-		SDL_Rect time_pos = {
-			.x = width / 2,
-			.y = height / 2 + font_size * 5,
-		};
-		SDL_QueryTexture(time_texture, NULL, NULL, &time_pos.w, &time_pos.h);
-		SDL_RenderCopy(renderer, time_texture, NULL, &time_pos);
+		size_t points_str_len = sizeof "Points: 100000000";
+		char points_str[points_str_len];
+		snprintf(points_str, points_str_len, "Points: %d", points);
+		render_text(renderer, font, points_str, width / 2, height / 2 + font_size * 7);
 
         SDL_RenderPresent(renderer);
 		SDL_UpdateWindowSurface(window);
-
-		SDL_FreeSurface(time_surface);
-		SDL_DestroyTexture(time_texture);
 
 		SDL_Event event;
 		SDL_WaitEvent(&event);
@@ -604,10 +611,12 @@ int main(void)
 				SDL_Texture *original_render_target =
 					SDL_GetRenderTarget(renderer);
 				SDL_SetRenderTarget(renderer, guessed_words_texture);
-				render_word(renderer, small_letter_textures,
+				render_letters(renderer, small_letter_textures,
 						curr_input, x, y, BOX_WIDTH + BOX_SPACING);
 
 				SDL_SetRenderTarget(renderer, original_render_target);
+
+				points += 10 * length * length;
 
 				if (guessed_words->count == anagrams->count)
 					puts("Congratulations, you guessed all the words!");
