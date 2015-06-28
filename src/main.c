@@ -567,6 +567,8 @@ int main(void)
 				remaining_chars[MAX_WORD_LENGTH - chars_entered - 1] = removed;
 				curr_input[chars_entered] = '\0';
 			}
+		} else if (vk == SDLK_SPACE) {
+			shuffle(remaining_chars);
 		} else if (vk == SDLK_RETURN) {
 			size_t length = strlen(curr_input);
 			int position;
