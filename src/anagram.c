@@ -119,3 +119,27 @@ WordList *find_all_anagrams(WordTree *tree, char *word)
 
 	return result;
 }
+
+int word_position(WordList *word_list, const char *word)
+{
+	size_t length = strlen(word) + 1;
+	for (size_t i = 0; i < word_list->count; i++) {
+		if (strncmp(GET_WORD(word_list, i), word, length) == 0)
+			return i;
+	}
+
+	return -1;
+}
+
+void shuffle(char *word)
+{
+	size_t length = strlen(word);
+	for (size_t i = 0; i < length; i++) {
+		float proportion = (float)rand() / RAND_MAX;
+		size_t swap_index = ((length - i) * proportion) + i;
+
+		char tmp = word[i];
+		word[i] = word[swap_index];
+		word[swap_index] = tmp;
+	}
+}
