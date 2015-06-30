@@ -109,6 +109,8 @@ void new_level(Game *game)
 
 	game->guessed_words_texture = render_empty_words(game->renderer, game->anagrams_by_length,
 			game->column_sizes, game->window_width, game->window_height);
+	SDL_DestroyTexture(game->message_box);
+	game->message_box = NULL;
 
 	game->guessed_words =
 		make_word_list(game->anagrams->count, MAX_WORD_LENGTH + 1);
@@ -122,7 +124,7 @@ void new_level(Game *game)
 	if (game->second_timer != 0)
 		SDL_RemoveTimer(game->second_timer);
 	game->second_timer = SDL_AddTimer(1000, timer_handler, game);
-	game->time_left = 180;
+	game->time_left = 5;
 
 	game->state = IN_LEVEL;
 }
@@ -158,8 +160,11 @@ static bool handle_event_in_level(Game *game, SDL_Event *event)
 				}
 
 				if (guessed_a_six_letter_word) {
-					puts("You advance to the next level");
+					char *message = "You qualify for the next round!";
+					puts(message);
 					game->state = WON_LEVEL;
+					game->message_box = render_message_box(game, message);
+
 					return true;
 				} else {
 					printf("You suck, you failed. No new level for you\n"
@@ -246,8 +251,15 @@ static bool handle_event_in_level(Game *game, SDL_Event *event)
 
 static bool handle_event_won_level(Game *game, SDL_Event *event)
 {
-	if (event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_RETURN)
-		new_level(game);
+	if (event->type == SDL_KEYDOWN) {
+		switch (event->key.keysym.sym) {
+		case SDLK_RETURN:
+			new_level(game);
+			break;
+		case SDLK_ESCAPE:
+			return false;
+		}
+	} 
 
 	return true;
 }

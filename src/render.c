@@ -244,6 +244,36 @@ SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 	return t;
 }
 
+SDL_Texture *render_message_box(Game *game, char *text)
+{
+	SDL_Renderer *renderer = game->renderer;
+
+	SDL_Texture *t = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_UNKNOWN,
+			SDL_TEXTUREACCESS_TARGET, game->window_width, game->window_height);
+	SDL_Texture *original_render_target = SDL_GetRenderTarget(renderer);
+	SDL_SetRenderTarget(renderer, t);
+
+	SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+	SDL_RenderClear(renderer);
+
+	int width = 0.6 * game->window_width;
+	int height = width * 0.25;
+	int x = game->window_width / 2 - width / 2;
+	int y = game->window_height / 2 - height / 2;
+	SDL_Rect box = { .x = x, .y = y, .w = width, .h = height };
+
+	SDL_SetRenderDrawColor(renderer, 0, 160, 235, 255);
+	SDL_RenderFillRect(renderer, &box);
+	SDL_SetRenderDrawColor(renderer, 0xCC, 0xFF, 0, 0xFF);
+	SDL_RenderDrawRect(renderer, &box);
+
+	render_text(renderer, game->font, text, x + 20, (y + height / 2) - 15);
+
+	SDL_SetRenderTarget(renderer, original_render_target);
+	return t;
+}
+
 int **compute_layout(Game *game)
 {
 	int box_height = LETTER_HEIGHT + LETTER_SPACING * 2;
@@ -327,14 +357,16 @@ int **compute_layout(Game *game)
 
 void render_game(Game *game)
 {
-	SDL_SetRenderDrawColor(game->renderer, 255, 0, 255, 255);
-	SDL_RenderClear(game->renderer);
-	SDL_RenderCopy(game->renderer, game->background, NULL, NULL);
-	SDL_RenderCopy(game->renderer, game->guessed_words_texture, NULL, NULL);
+	SDL_Renderer *renderer = game->renderer;
 
-	render_letters(game->renderer, game->large_letter_textures, game->curr_input,
+	SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+	SDL_RenderClear(renderer);
+	SDL_RenderCopy(renderer, game->background, NULL, NULL);
+	SDL_RenderCopy(renderer, game->guessed_words_texture, NULL, NULL);
+
+	render_letters(renderer, game->large_letter_textures, game->curr_input,
 			game->window_width / 2, game->window_height / 2, 24 * 1.5);
-	render_letters(game->renderer, game->large_letter_textures, game->remaining_chars,
+	render_letters(renderer, game->large_letter_textures, game->remaining_chars,
 			game->window_width / 2, game->window_height / 2 + 24 * 2, 24 * 1.5);
 
 	int minutes = game->time_left / 60;
@@ -343,13 +375,16 @@ void render_game(Game *game)
 	size_t time_str_len = sizeof "3:00";
 	char time_str[time_str_len];
 	snprintf(time_str, time_str_len, "%d:%02d", minutes, seconds);
-	render_text(game->renderer, game->font, time_str, game->window_width / 2, game->window_height / 2 + 24 * 5);
+	render_text(renderer, game->font, time_str, game->window_width / 2, game->window_height / 2 + 24 * 5);
 
 	size_t points_str_len = sizeof "Points: 100000000";
 	char points_str[points_str_len];
 	snprintf(points_str, points_str_len, "Points: %d", game->points);
-	render_text(game->renderer, game->font, points_str, game->window_width / 2, game->window_height / 2 + 24 * 7);
+	render_text(renderer, game->font, points_str, game->window_width / 2, game->window_height / 2 + 24 * 7);
 
-	SDL_RenderPresent(game->renderer);
+	if (game->message_box != NULL)
+		SDL_RenderCopy(renderer, game->message_box, NULL, NULL);
+
+	SDL_RenderPresent(renderer);
 	SDL_UpdateWindowSurface(game->window);
 }

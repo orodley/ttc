@@ -11,6 +11,7 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 		int width, int height, SDL_Color center_color, SDL_Color corner_color);
 SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 		int **col_sizes, int width, int height);
+SDL_Texture *render_message_box(Game *game, char *text);
 int **compute_layout(Game *game);
 void render_game(Game *game);
 

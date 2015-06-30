@@ -51,8 +51,8 @@ int main(void)
 	if (game.font == NULL)
 		return 7;
 
-	SDL_Color center_color = {0, 239, 235, 255};
-	SDL_Color corner_color = {0, 124, 235, 255};
+	SDL_Color center_color = {0, 0xDB, 0xEB, 0xFF};
+	SDL_Color corner_color = {0, 0x9A, 0xEB, 0xFF};
 	game.background = render_radial_gradient(game.renderer,
 			game.window_width, game.window_height, center_color, corner_color);
 
