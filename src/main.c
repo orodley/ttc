@@ -13,7 +13,10 @@
 
 int main(void)
 {
-	WordTree *tree = word_list_to_tree(words);
+	Game game = {};
+
+	game.all_words_array = words;
+	game.all_words_tree = word_list_to_tree(words);
 
 	struct timeval t;
 	gettimeofday(&t, NULL);
@@ -24,46 +27,45 @@ int main(void)
 	if (TTF_Init() == -1)
 		return 4;
 
-	GameState game_state;
+	game.window_width = 720;
+	game.window_height = 540;
 
-	game_state.window_width = 720;
-	game_state.window_height = 540;
-
-	game_state.window = SDL_CreateWindow(
+	game.window = SDL_CreateWindow(
 			"ttc",
 			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-			game_state.window_width, game_state.window_height,
+			game.window_width, game.window_height,
 			SDL_WINDOW_SHOWN);
-	if (game_state.window == NULL)
+	if (game.window == NULL)
 		return 5;
 
-	game_state.renderer = SDL_CreateRenderer(game_state.window, -1, 0);
-	if (game_state.renderer == NULL)
+	game.renderer = SDL_CreateRenderer(game.window, -1, 0);
+	if (game.renderer == NULL)
 		return 6;
 
 	int font_size = 24;
-	if (!prerender_letters(game_state.large_letter_textures, game_state.renderer, "font.ttf", font_size))
+	if (!prerender_letters(game.large_letter_textures, game.renderer, "font.ttf", font_size))
 		return 7;
-	if (!prerender_letters(game_state.small_letter_textures, game_state.renderer, "font.ttf", 18))
+	if (!prerender_letters(game.small_letter_textures, game.renderer, "font.ttf", 18))
 		return 7;
-	game_state.font = TTF_OpenFont("font.ttf", font_size);
-	if (game_state.font == NULL)
+	game.font = TTF_OpenFont("font.ttf", font_size);
+	if (game.font == NULL)
 		return 7;
 
 	SDL_Color center_color = {0, 239, 235, 255};
 	SDL_Color corner_color = {0, 124, 235, 255};
-	game_state.background = render_radial_gradient(game_state.renderer, game_state.window_width, game_state.window_height,
-			center_color, corner_color);
+	game.background = render_radial_gradient(game.renderer,
+			game.window_width, game.window_height, center_color, corner_color);
 
-	new_level(&game_state, tree, words);
+	new_level(&game);
+	game.points = 0;
 	
 	for (;;) {
-		render_game(&game_state);
+		render_game(&game);
 
 		SDL_Event event;
 		SDL_WaitEvent(&event);
 
-		if (!handle_event(&game_state, &event))
+		if (!handle_event(&game, &event))
 			break;
 	}
 

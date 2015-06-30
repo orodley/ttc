@@ -7,23 +7,29 @@
 #include "game.h"
 #include "render.h"
 
-#define SECOND_ELAPSED 0
-
-static uint32_t push_time_event(uint32_t interval, void *param)
+typedef enum UserEvent
 {
-	(void)param;
+	SECOND_ELAPSED_EVENT,
+} UserEvent;
 
-    SDL_Event event;
-    SDL_UserEvent userevent;
+static uint32_t timer_handler(uint32_t interval, void *param)
+{
+	Game *game = (Game *)param;
+	if (game->state == IN_LEVEL) {
+		SDL_Event event;
+		SDL_UserEvent userevent;
 
-    userevent.type = SDL_USEREVENT;
-    userevent.code = SECOND_ELAPSED;
+		userevent.type = SDL_USEREVENT;
+		userevent.code = SECOND_ELAPSED_EVENT;
 
-    event.type = SDL_USEREVENT;
-    event.user = userevent;
+		event.type = SDL_USEREVENT;
+		event.user = userevent;
 
-    SDL_PushEvent(&event);
-    return(interval);
+		SDL_PushEvent(&event);
+		return interval;
+	} else {
+		return 0;
+	}
 }
 
 static char *random_word(char **word_list, unsigned int length)
@@ -76,20 +82,20 @@ static void sort_words(WordList **words_by_length, const WordList *unsorted_word
 }
 
 
-void new_level(GameState *game_state, WordTree *tree, char **words)
+void new_level(Game *game)
 {
-	char *word = strdup(random_word(words, MAX_WORD_LENGTH));
+	char *word = strdup(random_word(game->all_words_array, MAX_WORD_LENGTH));
 
 	printf("word is %s\n", word);
 	shuffle(word);
 	printf("word is %s\n", word);
 
-	game_state->anagrams = find_all_anagrams(tree, word);
-	printf("%zu anagrams:\n", game_state->anagrams->count);
+	game->anagrams = find_all_anagrams(game->all_words_tree, word);
+	printf("%zu anagrams:\n", game->anagrams->count);
 
 	WordList **anagrams_by_length = malloc(sizeof(*anagrams_by_length) *
 			(MAX_WORD_LENGTH - 2));
-	sort_words(anagrams_by_length, game_state->anagrams);
+	sort_words(anagrams_by_length, game->anagrams);
 	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
 		printf("%zu: %zu words\n", i + 3, anagrams_by_length[i]->count);
 
@@ -97,37 +103,69 @@ void new_level(GameState *game_state, WordTree *tree, char **words)
 			printf("\t%s\n", GET_WORD(anagrams_by_length[i], j));
 	}
 
-	game_state->anagrams_by_length = anagrams_by_length;
+	game->anagrams_by_length = anagrams_by_length;
 
-	game_state->column_sizes = compute_layout(game_state);
+	game->column_sizes = compute_layout(game);
 
-	game_state->guessed_words_texture = render_empty_words(game_state->renderer, game_state->anagrams_by_length,
-			game_state->column_sizes, game_state->window_width, game_state->window_height);
+	game->guessed_words_texture = render_empty_words(game->renderer, game->anagrams_by_length,
+			game->column_sizes, game->window_width, game->window_height);
 
-	game_state->guessed_words =
-		make_word_list(game_state->anagrams->count, MAX_WORD_LENGTH + 1);
-	game_state->guessed_words->count = 0;
+	game->guessed_words =
+		make_word_list(game->anagrams->count, MAX_WORD_LENGTH + 1);
+	game->guessed_words->count = 0;
 
-	game_state->chars_entered = 0;
+	game->chars_entered = 0;
 
-	memset(game_state->curr_input, 0, MAX_WORD_LENGTH + 1);
-	memcpy(game_state->remaining_chars, word, MAX_WORD_LENGTH + 1);
+	memset(game->curr_input, 0, MAX_WORD_LENGTH + 1);
+	memcpy(game->remaining_chars, word, MAX_WORD_LENGTH + 1);
 
-	game_state->second_timer = SDL_AddTimer(1000, push_time_event, NULL);
-	game_state->time_left = 180;
-	game_state->points = 0;
+	if (game->second_timer != 0)
+		SDL_RemoveTimer(game->second_timer);
+	game->second_timer = SDL_AddTimer(1000, timer_handler, game);
+	game->time_left = 180;
+
+	game->state = IN_LEVEL;
 }
 
-bool handle_event(GameState *game_state, SDL_Event *event)
+static bool handle_event_in_level(Game *game, SDL_Event *event);
+static bool handle_event_won_level(Game *game, SDL_Event *event);
+
+bool handle_event(Game *game, SDL_Event *event)
+{
+	switch (game->state) {
+	case IN_LEVEL: return handle_event_in_level(game, event);
+	case WON_LEVEL: return handle_event_won_level(game, event);
+	default: assert(!"invalid state");
+	}
+}
+
+static bool handle_event_in_level(Game *game, SDL_Event *event)
 {
 	if (event->type == SDL_USEREVENT) {
 		switch (event->user.code) {
-		case SECOND_ELAPSED:
-			game_state->time_left--;
+		case SECOND_ELAPSED_EVENT:
+			game->time_left--;
 
-			if (game_state->time_left == 0) {
+			if (game->time_left == 0) {
 				puts("Time's up!");
-				return 0;
+
+				bool guessed_a_six_letter_word = false;
+				for (size_t i = 0; i < game->guessed_words->count; i++) {
+					if (strlen(GET_WORD(game->guessed_words, i)) == 6) {
+						guessed_a_six_letter_word = true;
+						break;
+					}
+				}
+
+				if (guessed_a_six_letter_word) {
+					puts("You advance to the next level");
+					game->state = WON_LEVEL;
+					return true;
+				} else {
+					printf("You suck, you failed. No new level for you\n"
+							"Your final score was %d\n", game->points);
+					return false;
+				}
 			}
 
 			break;
@@ -144,8 +182,8 @@ bool handle_event(GameState *game_state, SDL_Event *event)
 		return false;
 	} else if ((vk >= 'a') && (vk <= 'z')) {
 		int removed_char_index = -1;
-		for (size_t i = 0; i < MAX_WORD_LENGTH - game_state->chars_entered; i++) {
-			char c = game_state->remaining_chars[i];
+		for (size_t i = 0; i < MAX_WORD_LENGTH - game->chars_entered; i++) {
+			char c = game->remaining_chars[i];
 
 			if (c == vk) {
 				removed_char_index = i;
@@ -156,52 +194,60 @@ bool handle_event(GameState *game_state, SDL_Event *event)
 		if (removed_char_index == -1)
 			return true;
 		for (int i = removed_char_index; i < MAX_WORD_LENGTH; i++)
-			game_state->remaining_chars[i] = game_state->remaining_chars[i + 1];
+			game->remaining_chars[i] = game->remaining_chars[i + 1];
 
-		game_state->curr_input[game_state->chars_entered++] = vk;
+		game->curr_input[game->chars_entered++] = vk;
 
 	} else if (vk == SDLK_BACKSPACE) {
-		if (game_state->chars_entered != 0) {
-			game_state->chars_entered--;
-			char removed = game_state->curr_input[game_state->chars_entered];
-			game_state->remaining_chars[
-				MAX_WORD_LENGTH - game_state->chars_entered - 1] = removed;
-			game_state->curr_input[game_state->chars_entered] = '\0';
+		if (game->chars_entered != 0) {
+			game->chars_entered--;
+			char removed = game->curr_input[game->chars_entered];
+			game->remaining_chars[
+				MAX_WORD_LENGTH - game->chars_entered - 1] = removed;
+			game->curr_input[game->chars_entered] = '\0';
 		}
 	} else if (vk == SDLK_SPACE) {
-		shuffle(game_state->remaining_chars);
+		shuffle(game->remaining_chars);
 	} else if (vk == SDLK_RETURN) {
-		size_t length = strlen(game_state->curr_input);
+		size_t length = strlen(game->curr_input);
 		int position;
 		if (length < 3 || length > 6) {
-			printf("%s is not the right length\n", game_state->curr_input);
-		} else if (word_position(game_state->guessed_words, game_state->curr_input) != -1) {
-			printf("you've already guessed %s\n", game_state->curr_input);
+			printf("%s is not the right length\n", game->curr_input);
+		} else if (word_position(game->guessed_words, game->curr_input) != -1) {
+			printf("you've already guessed %s\n", game->curr_input);
 		} else if ((position = word_position(
-						game_state->anagrams_by_length[length - 3],
-						game_state->curr_input))
+						game->anagrams_by_length[length - 3],
+						game->curr_input))
 				!= -1) {
-			printf("yep, %s is correct\n", game_state->curr_input);
+			printf("yep, %s is correct\n", game->curr_input);
 
-			memcpy(GET_WORD(game_state->guessed_words, game_state->guessed_words->count),
-					game_state->curr_input, length);
-			game_state->guessed_words->count++;
+			memcpy(GET_WORD(game->guessed_words, game->guessed_words->count),
+					game->curr_input, length);
+			game->guessed_words->count++;
 
-			render_guessed_word(game_state, game_state->curr_input);
+			render_guessed_word(game, game->curr_input);
 
-			game_state->points += 10 * length * length;
+			game->points += 10 * length * length;
 
-			if (game_state->guessed_words->count == game_state->anagrams->count)
+			if (game->guessed_words->count == game->anagrams->count)
 				puts("Congratulations, you guessed all the words!");
 		} else {
-			printf("no, %s is wrong\n", game_state->curr_input);
+			printf("no, %s is wrong\n", game->curr_input);
 		}
 
-		memcpy((game_state->remaining_chars + MAX_WORD_LENGTH) - game_state->chars_entered,
-				game_state->curr_input, game_state->chars_entered);
-		memset(game_state->curr_input, 0, game_state->chars_entered);
-		game_state->chars_entered = 0;
+		memcpy((game->remaining_chars + MAX_WORD_LENGTH) - game->chars_entered,
+				game->curr_input, game->chars_entered);
+		memset(game->curr_input, 0, game->chars_entered);
+		game->chars_entered = 0;
 	}
+
+	return true;
+}
+
+static bool handle_event_won_level(Game *game, SDL_Event *event)
+{
+	if (event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_RETURN)
+		new_level(game);
 
 	return true;
 }

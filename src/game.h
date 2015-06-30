@@ -5,7 +5,13 @@
 #include <SDL2/SDL_ttf.h>
 #include "anagram.h"
 
-typedef struct GameState
+typedef enum State
+{
+	IN_LEVEL,
+	WON_LEVEL,
+} State;
+
+typedef struct Game
 {
 	SDL_Window *window;
 	SDL_Renderer *renderer;
@@ -20,6 +26,9 @@ typedef struct GameState
 	int window_height;
 	int window_width;
 
+	char **all_words_array;
+	WordTree *all_words_tree;
+
 	WordList *anagrams;
 	WordList **anagrams_by_length;
 	int **column_sizes;
@@ -32,9 +41,11 @@ typedef struct GameState
 
 	int time_left;
 	int points;
-} GameState;
 
-void new_level(GameState *game_state, WordTree *tree, char **words);
-bool handle_event(GameState *game_state, SDL_Event *event);
+	State state;
+} Game;
+
+void new_level(Game *game);
+bool handle_event(Game *game_state, SDL_Event *event);
 
 #endif

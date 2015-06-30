@@ -79,15 +79,15 @@ static void render_text(SDL_Renderer *renderer, TTF_Font *font, char *text,
 	SDL_DestroyTexture(texture);
 }
 
-void render_guessed_word(GameState *game_state, char *word)
+void render_guessed_word(Game *game, char *word)
 {
 	size_t length = strlen(word);
-	size_t position = word_position(game_state->anagrams_by_length[length - 3], word);
+	size_t position = word_position(game->anagrams_by_length[length - 3], word);
 
 	int x = WORDS_START_X;
 	int y = WORDS_START_Y;
 
-	int *cols = game_state->column_sizes[length - 3];
+	int *cols = game->column_sizes[length - 3];
 	int column = 0;
 	int row = position;
 	int column_size = cols[column];
@@ -101,7 +101,7 @@ void render_guessed_word(GameState *game_state, char *word)
 	x += column * COLUMN_SPACING;
 
 	for (size_t i = 0; i < length - 3; i++)
-		y += game_state->column_sizes[i][0] * (BOX_HEIGHT + BOX_SPACING);
+		y += game->column_sizes[i][0] * (BOX_HEIGHT + BOX_SPACING);
 
 	y += row * (BOX_HEIGHT + BOX_SPACING);
 
@@ -111,12 +111,12 @@ void render_guessed_word(GameState *game_state, char *word)
 	y += 2;
 
 	SDL_Texture *original_render_target =
-		SDL_GetRenderTarget(game_state->renderer);
-	SDL_SetRenderTarget(game_state->renderer, game_state->guessed_words_texture);
-	render_letters(game_state->renderer, game_state->small_letter_textures,
+		SDL_GetRenderTarget(game->renderer);
+	SDL_SetRenderTarget(game->renderer, game->guessed_words_texture);
+	render_letters(game->renderer, game->small_letter_textures,
 			word, x, y, BOX_WIDTH + BOX_SPACING);
 
-	SDL_SetRenderTarget(game_state->renderer, original_render_target);
+	SDL_SetRenderTarget(game->renderer, original_render_target);
 }
 
 static int distance(int x1, int y1, int x2, int y2)
@@ -244,15 +244,15 @@ SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 	return t;
 }
 
-int **compute_layout(GameState *game_state)
+int **compute_layout(Game *game)
 {
 	int box_height = LETTER_HEIGHT + LETTER_SPACING * 2;
-	int max_rows = (game_state->window_height - 20) / (box_height + BOX_SPACING);
+	int max_rows = (game->window_height - 20) / (box_height + BOX_SPACING);
 
 	int *row_sizes[MAX_WORD_LENGTH - 2];
 	int total_words = 0;
 	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
-		size_t count = game_state->anagrams_by_length[i]->count;
+		size_t count = game->anagrams_by_length[i]->count;
 		total_words += count;
 		row_sizes[i] = malloc(sizeof(int) * (count + 1));
 
@@ -325,31 +325,31 @@ int **compute_layout(GameState *game_state)
 	return col_sizes;
 }
 
-void render_game(GameState *game_state)
+void render_game(Game *game)
 {
-	SDL_SetRenderDrawColor(game_state->renderer, 255, 0, 255, 255);
-	SDL_RenderClear(game_state->renderer);
-	SDL_RenderCopy(game_state->renderer, game_state->background, NULL, NULL);
-	SDL_RenderCopy(game_state->renderer, game_state->guessed_words_texture, NULL, NULL);
+	SDL_SetRenderDrawColor(game->renderer, 255, 0, 255, 255);
+	SDL_RenderClear(game->renderer);
+	SDL_RenderCopy(game->renderer, game->background, NULL, NULL);
+	SDL_RenderCopy(game->renderer, game->guessed_words_texture, NULL, NULL);
 
-	render_letters(game_state->renderer, game_state->large_letter_textures, game_state->curr_input,
-			game_state->window_width / 2, game_state->window_height / 2, 24 * 1.5);
-	render_letters(game_state->renderer, game_state->large_letter_textures, game_state->remaining_chars,
-			game_state->window_width / 2, game_state->window_height / 2 + 24 * 2, 24 * 1.5);
+	render_letters(game->renderer, game->large_letter_textures, game->curr_input,
+			game->window_width / 2, game->window_height / 2, 24 * 1.5);
+	render_letters(game->renderer, game->large_letter_textures, game->remaining_chars,
+			game->window_width / 2, game->window_height / 2 + 24 * 2, 24 * 1.5);
 
-	int minutes = game_state->time_left / 60;
-	int seconds = game_state->time_left % 60;
+	int minutes = game->time_left / 60;
+	int seconds = game->time_left % 60;
 
 	size_t time_str_len = sizeof "3:00";
 	char time_str[time_str_len];
 	snprintf(time_str, time_str_len, "%d:%02d", minutes, seconds);
-	render_text(game_state->renderer, game_state->font, time_str, game_state->window_width / 2, game_state->window_height / 2 + 24 * 5);
+	render_text(game->renderer, game->font, time_str, game->window_width / 2, game->window_height / 2 + 24 * 5);
 
 	size_t points_str_len = sizeof "Points: 100000000";
 	char points_str[points_str_len];
-	snprintf(points_str, points_str_len, "Points: %d", game_state->points);
-	render_text(game_state->renderer, game_state->font, points_str, game_state->window_width / 2, game_state->window_height / 2 + 24 * 7);
+	snprintf(points_str, points_str_len, "Points: %d", game->points);
+	render_text(game->renderer, game->font, points_str, game->window_width / 2, game->window_height / 2 + 24 * 7);
 
-	SDL_RenderPresent(game_state->renderer);
-	SDL_UpdateWindowSurface(game_state->window);
+	SDL_RenderPresent(game->renderer);
+	SDL_UpdateWindowSurface(game->window);
 }
