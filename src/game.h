@@ -21,6 +21,7 @@ typedef struct Game
 	SDL_Texture *small_letter_textures[26];
 	SDL_Texture *background;
 	SDL_Texture *message_box;
+	SDL_Texture *letter_circle;
 	TTF_Font *font;
 
 	SDL_TimerID second_timer;

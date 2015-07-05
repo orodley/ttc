@@ -55,6 +55,7 @@ int main(void)
 	SDL_Color corner_color = {0, 0x9A, 0xEB, 0xFF};
 	game.background = render_radial_gradient(game.renderer,
 			game.window_width, game.window_height, center_color, corner_color);
+	game.letter_circle = render_letter_circle(game.renderer, 30, 30);
 
 	new_level(&game);
 	game.points = 0;
