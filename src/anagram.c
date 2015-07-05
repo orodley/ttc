@@ -38,8 +38,8 @@ WordTree *word_list_to_tree(char **word_list)
 WordList *make_word_list(size_t count, size_t elem_size)
 {
 	WordList *word_list = calloc(1, sizeof(*word_list) + count * elem_size);
-	word_list->count = count;
 	word_list->elem_size = elem_size;
+	word_list->count = 0;
 
 	return word_list;
 }
@@ -100,7 +100,6 @@ static void find_all_anagrams_aux(char *anagrams, size_t *anagram_index,
 WordList *find_all_anagrams(WordTree *tree, char *word)
 {
 	WordList *result = make_word_list(MAX_ANAGRAMS, MAX_WORD_LENGTH + 1);
-	result->count = 0;
 
 	char word_copy[MAX_WORD_LENGTH];
 	size_t word_len = strlen(word);

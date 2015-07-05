@@ -61,7 +61,6 @@ static void sort_words(WordList **words_by_length, const WordList *unsorted_word
 
 	for (size_t i = 0; i < MAX_WORD_LENGTH - 2; i++) {
 		WordList *word_list = make_word_list(length_counts[i], i + 4);
-		word_list->count = 0;
 		words_by_length[i] = word_list;
 	}
 
@@ -109,7 +108,6 @@ void new_level(Game *game)
 
 	game->guessed_words =
 		make_word_list(game->anagrams->count, MAX_WORD_LENGTH + 1);
-	game->guessed_words->count = 0;
 
 	SDL_Color white = { 0xFF, 0xFF, 0xFF, 0xFF };
 	game->guessed_words_texture = render_empty_words(game, white);
