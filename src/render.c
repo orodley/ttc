@@ -185,17 +185,16 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 	return t;
 }
 
-SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
-		int **col_sizes, int width, int height)
+SDL_Texture *render_empty_words(Game *game, SDL_Color fill_color)
 {
-	SDL_Texture *t = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_UNKNOWN,
-			SDL_TEXTUREACCESS_TARGET, width, height);
-	SDL_Texture *original_render_target = SDL_GetRenderTarget(renderer);
-	SDL_SetRenderTarget(renderer, t);
+	SDL_Texture *t = SDL_CreateTexture(game->renderer, SDL_PIXELFORMAT_UNKNOWN,
+			SDL_TEXTUREACCESS_TARGET, game->window_width, game->window_height);
+	SDL_Texture *original_render_target = SDL_GetRenderTarget(game->renderer);
+	SDL_SetRenderTarget(game->renderer, t);
 
 	SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-	SDL_RenderClear(renderer);
+	SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 0);
+	SDL_RenderClear(game->renderer);
 
 	SDL_Rect box = { 
 		.x = WORDS_START_X,
@@ -206,19 +205,23 @@ SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 
 	for (int i = 0; i < MAX_WORD_LENGTH - 2; i++) {
 		int group_start_y = box.y;
-		int *group_col_sizes = col_sizes[i];
-		WordList *word_list = word_lists[i];
+		int *group_col_sizes = game->column_sizes[i];
+		WordList *word_list = game->anagrams_by_length[i];
 		int word_length = i + 3;
 		int curr_col_index = 0;
 		int words_left_in_column = group_col_sizes[curr_col_index];
 
 		for (size_t j = 0; j < word_list->count; j++) {
 			int word_start_x = box.x;
+			char *word = GET_WORD(word_list, j);
 			for (int n = 0; n < word_length; n++) {
-				SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-				SDL_RenderFillRect(renderer, &box);
-				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-				SDL_RenderDrawRect(renderer, &box);
+				if (word_position(game->guessed_words, word) == -1) {
+					SDL_SetRenderDrawColor(game->renderer, fill_color.r,
+							fill_color.g, fill_color.b, fill_color.a);
+					SDL_RenderFillRect(game->renderer, &box);
+					SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 255);
+					SDL_RenderDrawRect(game->renderer, &box);
+				}
 
 				box.x += box.w + BOX_SPACING;
 			}
@@ -240,7 +243,7 @@ SDL_Texture *render_empty_words(SDL_Renderer *renderer, WordList **word_lists,
 		box.y += group_col_sizes[0] * (box.h + ROW_SPACING);
 	}
 
-	SDL_SetRenderTarget(renderer, original_render_target);
+	SDL_SetRenderTarget(game->renderer, original_render_target);
 	return t;
 }
 

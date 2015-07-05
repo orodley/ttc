@@ -107,14 +107,14 @@ void new_level(Game *game)
 
 	game->column_sizes = compute_layout(game);
 
-	game->guessed_words_texture = render_empty_words(game->renderer, game->anagrams_by_length,
-			game->column_sizes, game->window_width, game->window_height);
-	SDL_DestroyTexture(game->message_box);
-	game->message_box = NULL;
-
 	game->guessed_words =
 		make_word_list(game->anagrams->count, MAX_WORD_LENGTH + 1);
 	game->guessed_words->count = 0;
+
+	SDL_Color white = { 0xFF, 0xFF, 0xFF, 0xFF };
+	game->guessed_words_texture = render_empty_words(game, white);
+	SDL_DestroyTexture(game->message_box);
+	game->message_box = NULL;
 
 	game->chars_entered = 0;
 
@@ -124,7 +124,7 @@ void new_level(Game *game)
 	if (game->second_timer != 0)
 		SDL_RemoveTimer(game->second_timer);
 	game->second_timer = SDL_AddTimer(1000, timer_handler, game);
-	game->time_left = 5;
+	game->time_left = 180;
 
 	game->state = IN_LEVEL;
 }
@@ -150,6 +150,22 @@ static bool handle_event_in_level(Game *game, SDL_Event *event)
 
 			if (game->time_left == 0) {
 				puts("Time's up!");
+
+				SDL_Color blue = { 0, 0xDB, 0xEB, 0xFF };
+				SDL_Texture *missed_words = render_empty_words(game, blue);
+				SDL_Texture *original_render_target =
+					SDL_GetRenderTarget(game->renderer);
+				SDL_SetRenderTarget(game->renderer, game->guessed_words_texture);
+				SDL_RenderCopy(game->renderer, missed_words, NULL, NULL);
+				SDL_SetRenderTarget(game->renderer, original_render_target);
+
+				// TODO: This could be made more efficient by keeping an index
+				// into guessed_words too.
+				for (size_t i = 0; i < game->anagrams->count; i++) {
+					char *word = GET_WORD(game->anagrams, i);
+					if (word_position(game->guessed_words, word) == -1)
+						render_guessed_word(game, word);
+				}
 
 				bool guessed_a_six_letter_word = false;
 				for (size_t i = 0; i < game->guessed_words->count; i++) {
