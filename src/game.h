@@ -9,6 +9,7 @@ typedef enum State
 {
 	IN_LEVEL,
 	WON_LEVEL,
+	GAME_OVER,
 } State;
 
 typedef struct Game

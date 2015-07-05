@@ -129,12 +129,14 @@ void new_level(Game *game)
 
 static bool handle_event_in_level(Game *game, SDL_Event *event);
 static bool handle_event_won_level(Game *game, SDL_Event *event);
+static bool handle_event_game_over(Game *game, SDL_Event *event);
 
 bool handle_event(Game *game, SDL_Event *event)
 {
 	switch (game->state) {
 	case IN_LEVEL: return handle_event_in_level(game, event);
 	case WON_LEVEL: return handle_event_won_level(game, event);
+	case GAME_OVER: return handle_event_game_over(game, event);
 	default: assert(!"invalid state");
 	}
 }
@@ -183,7 +185,9 @@ static bool handle_event_in_level(Game *game, SDL_Event *event)
 				} else {
 					printf("You suck, you failed. No new level for you\n"
 							"Your final score was %d\n", game->points);
-					return false;
+					game->state = GAME_OVER;
+					game->message_box = render_message_box(game, "Game over, loser");
+					return true;
 				}
 			}
 
@@ -276,4 +280,10 @@ static bool handle_event_won_level(Game *game, SDL_Event *event)
 	} 
 
 	return true;
+}
+
+static bool handle_event_game_over(Game *game, SDL_Event *event)
+{
+	(void)game;
+	return !(event->type == SDL_KEYDOWN);
 }
