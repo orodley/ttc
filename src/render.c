@@ -46,25 +46,22 @@ bool prerender_letters(SDL_Texture **textures, SDL_Renderer *renderer,
 }
 
 static void render_letter(SDL_Renderer *renderer, SDL_Texture **letter_textures,
-		char c, int x, int y)
+		char c, int x, int y, int w, int h)
 {
 	SDL_Rect rect = { .x = x, .y = y, .h = 0, .w = 0 };
 	SDL_Texture *letter_texture = letter_textures[c - 'a'];
 	SDL_QueryTexture(letter_texture, NULL, NULL, &rect.w, &rect.h);
+	rect.x += (w - rect.w) / 2;
+	rect.y += (h - rect.h) / 2;
 
 	SDL_RenderCopy(renderer, letter_texture, NULL, &rect);
 }
 
 static void render_word(SDL_Renderer *renderer, SDL_Texture **letter_textures,
-		const char *letters, int x, int y, int step)
+		const char *letters, int x, int y, int w, int h, int step)
 {
-	// Hack to get letters placed slightly better. We should center
-	// glyphs when we render them to do this properly.
-	x += 2; 
-	y += 2;
-
 	for (int i = 0; letters[i] != '\0'; i++) {
-		render_letter(renderer, letter_textures, letters[i], x, y);
+		render_letter(renderer, letter_textures, letters[i], x, y, w, h);
 		x += step;
 	}
 }
@@ -125,7 +122,7 @@ void render_guessed_word(Game *game, char *word)
 		SDL_GetRenderTarget(game->renderer);
 	SDL_SetRenderTarget(game->renderer, game->guessed_words_texture);
 	render_word(game->renderer, game->small_letter_textures,
-			word, x, y, BOX_WIDTH + BOX_SPACING);
+			word, x, y, BOX_WIDTH, BOX_HEIGHT, BOX_WIDTH + BOX_SPACING);
 
 	SDL_SetRenderTarget(game->renderer, original_render_target);
 }
@@ -415,19 +412,19 @@ void render_game(Game *game)
 	SDL_RenderCopy(renderer, game->background, NULL, NULL);
 	SDL_RenderCopy(renderer, game->guessed_words_texture, NULL, NULL);
 
-	int step = 24 * 1.5;
+	int step = 35;
 
 	int curr_input_x = game->window_width / 2;
 	int curr_input_y = game->window_height / 2;
 	render_letter_circles(game, game->chars_entered, curr_input_x, curr_input_y, step);
 	render_word(renderer, game->large_letter_textures, game->curr_input,
-			curr_input_x, curr_input_y, step);
+			curr_input_x, curr_input_y, 30, 30, step);
 	int remaining_chars_x = game->window_width / 2;
 	int remaining_chars_y = game->window_height / 2 + 35;
 	render_letter_circles(game, MAX_WORD_LENGTH - game->chars_entered,
 			remaining_chars_x, remaining_chars_y, step);
 	render_word(renderer, game->large_letter_textures, game->remaining_chars,
-			remaining_chars_x, remaining_chars_y, step);
+			remaining_chars_x, remaining_chars_y, 30, 30, step);
 
 	int minutes = game->time_left / 60;
 	int seconds = game->time_left % 60;
