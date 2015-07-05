@@ -252,8 +252,18 @@ static bool handle_event_in_level(Game *game, SDL_Event *event)
 
 			game->points += 10 * length * length;
 
-			if (game->guessed_words->count == game->anagrams->count)
-				puts("Congratulations, you guessed all the words!");
+			if (game->guessed_words->count == game->anagrams->count) {
+				char *message = "You guessed all the words!";
+
+				puts(message);
+				game->message_box = render_message_box(game, message);
+				game->state = WON_LEVEL;
+
+				// Bonus for guessing all the words.
+				game->points += game->anagrams->count * 200 + 100;
+
+				return true;
+			}
 		} else {
 			printf("no, %s is wrong\n", game->curr_input);
 		}
