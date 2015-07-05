@@ -193,10 +193,10 @@ SDL_Texture *render_radial_gradient(SDL_Renderer *renderer,
 	return t;
 }
 
-SDL_Texture *render_letter_circle(SDL_Renderer *renderer, int width, int height)
+SDL_Texture *render_letter_circle(SDL_Renderer *renderer, int diameter)
 {
 	SDL_Texture *t = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_UNKNOWN,
-			SDL_TEXTUREACCESS_TARGET, width, height);
+			SDL_TEXTUREACCESS_TARGET, diameter, diameter);
 	SDL_Texture *original_render_target = SDL_GetRenderTarget(renderer);
 	SDL_SetRenderTarget(renderer, t);
 
@@ -206,21 +206,37 @@ SDL_Texture *render_letter_circle(SDL_Renderer *renderer, int width, int height)
 
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 
-	float radius = width / 2;
+	float radius = diameter / 2;
 	float aa_distance = 1;
-	for (int x = 0; x < width; x++) {
-		for (int y = 0; y < height; y++) {
-			float dist = distance(width / 2, height / 2, x, y);
+	for (int x = 0; x < diameter; x++) {
+		for (int y = 0; y < diameter; y++) {
+			float dist = distance(radius, radius, x, y);
 			if (dist >= radius)
 				continue;
 
-			if (dist <= radius - aa_distance) {
-				SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-			} else  {
-				float proportion = (radius - dist) / aa_distance;
-				SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, proportion * 0xFF);
-			}
+			float drop_shadow_center_x, drop_shadow_center_y;
+			drop_shadow_center_x = drop_shadow_center_y = diameter / 3;
 
+			float drop_shadow_dist = distance(x, y,
+					drop_shadow_center_x, drop_shadow_center_y);
+
+			float max_drop_shadow_dist = ((2.0 / 3.0) - (1 - sqrtf(0.5)))
+				* diameter;
+
+			float drop_shadow_proportion = drop_shadow_dist / max_drop_shadow_dist;
+
+			SDL_Color normal_color = { 0xFF, 0xFF, 0xFF, 0xFF };
+			SDL_Color shadow_color = { 0xAA, 0xAA, 0xAA, 0xFF };
+			SDL_Color c = color_lerp(
+					normal_color, drop_shadow_proportion, shadow_color);
+
+			float aa_proportion;
+			if (dist <= radius - aa_distance)
+				aa_proportion = 1.0;
+			else
+				aa_proportion = (radius - dist) / aa_distance;
+
+			SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, aa_proportion * 0xFF);
 			SDL_RenderDrawPoint(renderer, x, y);
 		}
 	}
