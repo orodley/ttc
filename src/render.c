@@ -219,21 +219,18 @@ SDL_Texture *render_letter_circle(SDL_Renderer *renderer, int diameter)
 			if (dist >= radius)
 				continue;
 
-			float drop_shadow_center_x, drop_shadow_center_y;
-			drop_shadow_center_x = drop_shadow_center_y = diameter / 3;
+			float shadow_center_x, shadow_center_y;
+			shadow_center_x = shadow_center_y = diameter / 3;
 
-			float drop_shadow_dist = distance(x, y,
-					drop_shadow_center_x, drop_shadow_center_y);
+			float shadow_dist = distance(x, y, shadow_center_x, shadow_center_y);
 
-			float max_drop_shadow_dist = ((2.0 / 3.0) - (1 - sqrtf(0.5)))
-				* diameter;
+			float max_shadow_dist = ((2.0 / 3.0) - (1 - sqrtf(0.5))) * diameter;
 
-			float drop_shadow_proportion = drop_shadow_dist / max_drop_shadow_dist;
+			float shadow_proportion = shadow_dist / max_shadow_dist;
 
 			SDL_Color normal_color = { 0xFF, 0xFF, 0xFF, 0xFF };
 			SDL_Color shadow_color = { 0xAA, 0xAA, 0xAA, 0xFF };
-			SDL_Color c = color_lerp(
-					normal_color, drop_shadow_proportion, shadow_color);
+			SDL_Color c = color_lerp(normal_color, shadow_proportion, shadow_color);
 
 			float aa_proportion;
 			if (dist <= radius - aa_distance)
