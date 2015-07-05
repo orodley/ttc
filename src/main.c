@@ -42,12 +42,11 @@ int main(void)
 	if (game.renderer == NULL)
 		return 6;
 
-	int font_size = 24;
-	if (!prerender_letters(game.large_letter_textures, game.renderer, "font.ttf", font_size))
+	if (!prerender_letters(game.large_letter_textures, game.renderer, "font.ttf", 44))
 		return 7;
 	if (!prerender_letters(game.small_letter_textures, game.renderer, "font.ttf", 18))
 		return 7;
-	game.font = TTF_OpenFont("font.ttf", font_size);
+	game.font = TTF_OpenFont("font.ttf", 44);
 	if (game.font == NULL)
 		return 7;
 
@@ -55,7 +54,7 @@ int main(void)
 	SDL_Color corner_color = {0, 0x9A, 0xEB, 0xFF};
 	game.background = render_radial_gradient(game.renderer,
 			game.window_width, game.window_height, center_color, corner_color);
-	game.letter_circle = render_letter_circle(game.renderer, 30);
+	game.letter_circle = render_letter_circle(game.renderer, 50);
 
 	new_level(&game);
 	game.points = 0;

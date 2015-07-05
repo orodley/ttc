@@ -54,6 +54,11 @@ static void render_letter(SDL_Renderer *renderer, SDL_Texture **letter_textures,
 	rect.x += (w - rect.w) / 2;
 	rect.y += (h - rect.h) / 2;
 
+	/*
+	SDL_SetRenderDrawColor(renderer, 0xFF, 0, 0xFF, 0xFF);
+	SDL_RenderFillRect(renderer, &rect);
+	*/
+
 	SDL_RenderCopy(renderer, letter_texture, NULL, &rect);
 }
 
@@ -207,7 +212,7 @@ SDL_Texture *render_letter_circle(SDL_Renderer *renderer, int diameter)
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 
 	float radius = diameter / 2;
-	float aa_distance = 1;
+	float aa_distance = 2;
 	for (int x = 0; x < diameter; x++) {
 		for (int y = 0; y < diameter; y++) {
 			float dist = distance(radius, radius, x, y);
@@ -428,19 +433,19 @@ void render_game(Game *game)
 	SDL_RenderCopy(renderer, game->background, NULL, NULL);
 	SDL_RenderCopy(renderer, game->guessed_words_texture, NULL, NULL);
 
-	int step = 35;
+	int step = 60;
 
 	int curr_input_x = game->window_width / 2;
 	int curr_input_y = game->window_height / 2;
 	render_letter_circles(game, game->chars_entered, curr_input_x, curr_input_y, step);
 	render_word(renderer, game->large_letter_textures, game->curr_input,
-			curr_input_x, curr_input_y, 30, 30, step);
+			curr_input_x, curr_input_y, 50, 50, step);
 	int remaining_chars_x = game->window_width / 2;
-	int remaining_chars_y = game->window_height / 2 + 35;
+	int remaining_chars_y = game->window_height / 2 + 60;
 	render_letter_circles(game, MAX_WORD_LENGTH - game->chars_entered,
 			remaining_chars_x, remaining_chars_y, step);
 	render_word(renderer, game->large_letter_textures, game->remaining_chars,
-			remaining_chars_x, remaining_chars_y, 30, 30, step);
+			remaining_chars_x, remaining_chars_y, 50, 50, step);
 
 	int minutes = game->time_left / 60;
 	int seconds = game->time_left % 60;
